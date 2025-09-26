@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { Pool } = require('pg');  // ← keep this ONE
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = 3000;
@@ -25,6 +25,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// ---- ROUTES ----
+
 // Create trip
 app.post('/api/trips', async (req, res) => {
   try {
@@ -45,7 +47,18 @@ app.post('/api/trips', async (req, res) => {
   }
 });
 
-// List trips
+// LIST trips  <-- this fixes "Cannot GET /api/trips"
+app.get('/api/trips', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM trips ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET one trip (with leader name)
 app.get('/api/trips/:id', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -58,26 +71,20 @@ app.get('/api/trips/:id', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Not found' });
     res.json(rows[0]);
   } catch (e) {
+    console.error(e);
     res.status(500).json({ error: e.message });
   }
 });
 
-
-ensureSchema().then(() => {
-  app.listen(PORT, () => {
-    console.log(`API running at http://localhost:${PORT}`);
-    console.log(`Open http://localhost:${PORT}/LeaderPage.html`);
+// ---- BOOT ----
+ensureSchema()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`API running at http://localhost:${PORT}`);
+      console.log(`Open http://localhost:${PORT}/LeaderPage.html`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to ensure schema:', err.message);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('Failed to ensure schema:', err.message);
-  process.exit(1);
-});
-app.get('/api/trips/:id', async (req, res) => {
-  try {
-    const { rows } = await pool.query(`SELECT * FROM trips WHERE id = $1`, [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    res.json(rows[0]);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});

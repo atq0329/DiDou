@@ -202,118 +202,123 @@
     <title> Trip Create </title>
 </head>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
   // Elements
-  const tripName = document.getElementById('tripName');
-  const dest     = document.getElementById('dest');
-  const duration = document.getElementById('duration');
-  const start    = document.getElementById('drpStart');
-  const end      = document.getElementById('drpEnd');
-  const createBtn= document.getElementById('creatTrip');
-  const errBox   = document.getElementById('drpErr');
+  const tripName   = document.getElementById('tripName');
+  const dest       = document.getElementById('dest');
+  const duration   = document.getElementById('duration');
+  const start      = document.getElementById('drpStart');
+  const end        = document.getElementById('drpEnd');
+  const createBtn  = document.getElementById('creatTrip');
+  const errBox     = document.getElementById('drpErr');
 
-  function updateLeaderHeader(){
-        const n = leaderName.value.trim();
-        leaderHeader.textContent = n ? `(Trip Leader: ${n})` : `(Trip Leader)`;
-      }
-      leaderName.addEventListener('input', updateLeaderHeader);
-      updateLeaderHeader();
-  // --- helpers ---
-  const showErr = (msg) => { errBox.textContent = msg; errBox.classList.add('show'); };
-  const clearErr = () => { errBox.textContent = ''; errBox.classList.remove('show'); };
-
-  function daysBetweenInclusive(isoStart, isoEnd){
-    const s = new Date(isoStart);
-    const e = new Date(isoEnd);
-    if (Number.isNaN(s) || Number.isNaN(e)) return null;
-    s.setHours(0,0,0,0);
-    e.setHours(0,0,0,0);
-    return Math.floor((e - s) / 86400000) + 1;
-  }
-
-  // Build the duration <select> as: 1 day, 2 days, ... N days
-  function rebuildDurationOptions(totalDays){
-    duration.innerHTML = ''; // clear all
-    // placeholder
-    const ph = document.createElement('option');
-    ph.value = '';
-    ph.textContent = 'Select duration…';
-    ph.disabled = true; ph.hidden = true; ph.selected = true;
-    duration.appendChild(ph);
-
-    // cap to avoid silly long lists (adjust if you want)
-    const max = Math.min(totalDays, 60);
-    for (let i = 1; i <= max; i++){
-      const opt = document.createElement('option');
-      opt.value = String(i); // store the number of days
-      opt.textContent = i === 1 ? '1 day' : `${i} days`;
-      duration.appendChild(opt);
-    }
-
-    // default to full range (optional)
-    if (totalDays >= 1){
-      duration.value = String(Math.min(totalDays, max));
-    }
-  }
-
-  function syncDurationFromDates(){
-    clearErr();
-    if (!start.value || !end.value) return;          // wait until both picked
-    if (end.value < start.value) { showErr('End date must be after start date.'); return; }
-    const d = daysBetweenInclusive(start.value, end.value);
-    if (!d || d <= 0) return;
-    rebuildDurationOptions(d);
-  }
-
-  // keep date constraints consistent + update options
-  start.addEventListener('change', () => { end.min   = start.value || ''; syncDurationFromDates(); });
-  end  .addEventListener('change',   () => { start.max = end.value   || ''; syncDurationFromDates(); });
-
-  // Submit/Create
-  createBtn.addEventListener('click', async () => {
-    clearErr();
-
-    // basic validation
-    if (!tripName.value.trim() || !dest.value.trim()) return;
-    if (!start.value || !end.value) { showErr('Please choose both start and end dates.'); return; }
-    if (end.value < start.value)    { showErr('End date must be after start date.'); return; }
-    if (!duration.value)            { showErr('Please choose a duration.'); return; }
-
-    const payload = {
-      name:        tripName.value.trim(),
-      destination: dest.value.trim(),
-      // duration is now a number of days as a string ("1", "2", ...). You can keep it like this
-      // or convert to number before sending if you prefer:
-      duration:    duration.value,
-      start_date:  start.value,
-      end_date:    end.value
+  // --- Only run leader header code if elements actually exist ---
+  const leaderName   = document.getElementById('leaderName');
+  const leaderHeader = document.getElementById('leaderHeader');
+  if (leaderName && leaderHeader) {
+    const updateLeaderHeader = () => {
+      const n = leaderName.value.trim();
+      leaderHeader.textContent = n ? `(Trip Leader: ${n})` : `(Trip Leader)`;
     };
+    leaderName.addEventListener('input', updateLeaderHeader);
+    updateLeaderHeader();
+  }
+        // --- helpers ---
+        const showErr = (msg) => { errBox.textContent = msg; errBox.classList.add('show'); };
+        const clearErr = () => { errBox.textContent = ''; errBox.classList.remove('show'); };
 
-    try {
-      createBtn.disabled = true;
-      const resp = await fetch('/api/trips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!resp.ok) {
-        const { error } = await resp.json().catch(() => ({ error:'Unknown error' }));
-        alert('Failed to save trip: ' + (error || resp.statusText));
-        createBtn.disabled = false;
-        return;
-      }
-      const row = await resp.json();
-      window.location.href = `/LeaderView.html?tripId=${encodeURIComponent(row.id)}`;
-    } catch (e) {
-      console.error(e);
-      alert('Network error saving trip (is the server running?)');
-      createBtn.disabled = false;
-    }
-  });
+        function daysBetweenInclusive(isoStart, isoEnd) {
+            const s = new Date(isoStart);
+            const e = new Date(isoEnd);
+            if (Number.isNaN(s) || Number.isNaN(e)) return null;
+            s.setHours(0, 0, 0, 0);
+            e.setHours(0, 0, 0, 0);
+            return Math.floor((e - s) / 86400000) + 1;
+        }
 
-  // Optional: if both dates are prefilled on load
-  syncDurationFromDates();
-});
+        // Build the duration <select> as: 1 day, 2 days, ... N days
+        function rebuildDurationOptions(totalDays) {
+            duration.innerHTML = ''; // clear all
+            // placeholder
+            const ph = document.createElement('option');
+            ph.value = '';
+            ph.textContent = 'Select duration…';
+            ph.disabled = true; ph.hidden = true; ph.selected = true;
+            duration.appendChild(ph);
+
+            // cap to avoid silly long lists (adjust if you want)
+            const max = Math.min(totalDays, 60);
+            for (let i = 1; i <= max; i++) {
+                const opt = document.createElement('option');
+                opt.value = String(i); // store the number of days
+                opt.textContent = i === 1 ? '1 day' : `${i} days`;
+                duration.appendChild(opt);
+            }
+
+            // default to full range (optional)
+            if (totalDays >= 1) {
+                duration.value = String(Math.min(totalDays, max));
+            }
+        }
+
+        function syncDurationFromDates() {
+            clearErr();
+            if (!start.value || !end.value) return;          // wait until both picked
+            if (end.value < start.value) { showErr('End date must be after start date.'); return; }
+            const d = daysBetweenInclusive(start.value, end.value);
+            if (!d || d <= 0) return;
+            rebuildDurationOptions(d);
+        }
+
+        // keep date constraints consistent + update options
+        start.addEventListener('change', () => { end.min = start.value || ''; syncDurationFromDates(); });
+        end.addEventListener('change', () => { start.max = end.value || ''; syncDurationFromDates(); });
+
+        // Submit/Create
+        createBtn.addEventListener('click', async () => {
+            clearErr();
+
+            // basic validation
+            if (!tripName.value.trim() || !dest.value.trim()) return;
+            if (!start.value || !end.value) { showErr('Please choose both start and end dates.'); return; }
+            if (end.value < start.value) { showErr('End date must be after start date.'); return; }
+            if (!duration.value) { showErr('Please choose a duration.'); return; }
+
+            const payload = {
+                name: tripName.value.trim(),
+                destination: dest.value.trim(),
+                // duration is now a number of days as a string ("1", "2", ...). You can keep it like this
+                // or convert to number before sending if you prefer:
+                duration: duration.value,
+                start_date: start.value,
+                end_date: end.value
+            };
+
+            try {
+                createBtn.disabled = true;
+                const resp = await fetch('/api/trips', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!resp.ok) {
+                    const { error } = await resp.json().catch(() => ({ error: 'Unknown error' }));
+                    alert('Failed to save trip: ' + (error || resp.statusText));
+                    createBtn.disabled = false;
+                    return;
+                }
+                const row = await resp.json();
+                window.location.href = `/LeaderView.html?tripId=${encodeURIComponent(row.id)}`;
+            } catch (e) {
+                console.error(e);
+                alert('Network error saving trip (is the server running?)');
+                createBtn.disabled = false;
+            }
+        });
+
+        // Optional: if both dates are prefilled on load
+        syncDurationFromDates();
+    });
 </script>
 
 
