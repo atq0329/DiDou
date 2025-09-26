@@ -62,4 +62,81 @@ CREATE TABLE trips (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   leader_id   INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
-CREATE INDEX IF NOT EXISTS idx_trips_leader_id ON trips(leader_id);
+-- 3) Join table: users ↔ trips (many-to-many)
+CREATE TABLE IF NOT EXISTS trip_members (
+  trip_id   TEXT    NOT NULL REFERENCES trips(id)   ON DELETE CASCADE,
+  user_id   INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  role      TEXT    NOT NULL DEFAULT 'member' CHECK (role IN ('leader','member')),
+  status    TEXT    NOT NULL DEFAULT 'joined' CHECK (status IN ('invited','joined','left')),
+  joined_at TIMESTAMPTZ     DEFAULT NOW(),
+  updated_at TIMESTAMPTZ    DEFAULT NOW(),
+  PRIMARY KEY (trip_id, user_id)
+);
+
+-- touch updated_at automatically
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  NEW.updated_at := NOW();
+  RETURN NEW;
+END$$;
+DROP TRIGGER IF EXISTS trip_members_set_updated_at ON trip_members;
+CREATE TRIGGER trip_members_set_updated_at
+BEFORE UPDATE ON trip_members
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+-- helpful indexes
+CREATE INDEX IF NOT EXISTS idx_trip_members_trip        ON trip_members (trip_id);
+CREATE INDEX IF NOT EXISTS idx_trip_members_user        ON trip_members (user_id);
+CREATE INDEX IF NOT EXISTS idx_trip_members_trip_status ON trip_members (trip_id, status);
+
+-- 4) (Optional but recommended) Denormalized live counter on trips
+ALTER TABLE trips
+  ADD COLUMN IF NOT EXISTS member_count INTEGER NOT NULL DEFAULT 0;
+
+-- trigger to maintain trips.member_count based on trip_members
+CREATE OR REPLACE FUNCTION trips_member_count_tg() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.status = 'joined' THEN
+      UPDATE trips SET member_count = member_count + 1 WHERE id = NEW.trip_id;
+    END IF;
+
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF COALESCE(OLD.status, '') <> 'joined' AND NEW.status = 'joined' THEN
+      UPDATE trips SET member_count = member_count + 1 WHERE id = NEW.trip_id;
+    ELSIF OLD.status = 'joined' AND COALESCE(NEW.status, '') <> 'joined' THEN
+      UPDATE trips SET member_count = member_count - 1 WHERE id = NEW.trip_id;
+    END IF;
+
+  ELSIF TG_OP = 'DELETE' THEN
+    IF OLD.status = 'joined' THEN
+      UPDATE trips SET member_count = GREATEST(0, member_count - 1) WHERE id = OLD.trip_id;
+    END IF;
+  END IF;
+
+  RETURN NULL;
+END$$;
+
+DROP TRIGGER IF EXISTS trip_members_counter_a_iud ON trip_members;
+CREATE TRIGGER trip_members_counter_a_iud
+AFTER INSERT OR UPDATE OR DELETE ON trip_members
+FOR EACH ROW EXECUTE FUNCTION trips_member_count_tg();
+
+-- 5) Simple function to get the current joined count (source-of-truth compute)
+CREATE OR REPLACE FUNCTION count_joined_members(p_trip_id TEXT)
+RETURNS INTEGER
+LANGUAGE sql STABLE AS $$
+  SELECT COUNT(*)::int
+  FROM trip_members
+  WHERE trip_id = p_trip_id AND status = 'joined';
+$$;
+
+-- 6) (Optional) View that exposes computed counts alongside trips
+CREATE OR REPLACE VIEW trips_with_counts AS
+SELECT t.*,
+       COUNT(m.*) FILTER (WHERE m.status = 'joined')::int AS joined_count
+FROM trips t
+LEFT JOIN trip_members m ON m.trip_id = t.id
+GROUP BY t.id;

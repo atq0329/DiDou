@@ -60,20 +60,14 @@ app.get('/api/trips', async (_req, res) => {
 
 // GET one trip (with leader name)
 app.get('/api/trips/:id', async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT t.*, u.name AS leader_name
-         FROM trips t
-         LEFT JOIN users u ON u.id = t.leader_id
-        WHERE t.id = $1`,
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
-    res.json(rows[0]);
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: e.message });
-  }
+  const { id } = req.params;
+  const { rows } = await pool.query(
+    `SELECT t.*, count_joined_members(t.id) AS member_count
+     FROM trips t WHERE t.id = $1`,
+    [id]
+  );
+  if (!rows.length) return res.status(404).json({ error: 'Not found' });
+  res.json(rows[0]);
 });
 
 // ---- BOOT ----
