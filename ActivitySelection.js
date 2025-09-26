@@ -30,32 +30,39 @@ app.get("/activities", (req, res) => {
 
 // Add a new activity
 app.post("/activities", (req, res) => {
-  const { name, category, address, start_time, end_time } = req.body;
+  const { name, category, time_period, address } = req.body;
 
-  // Validate input
-  if (!name || !category || !address || !start_time || !end_time) {
-    return res.status(400).json({ error: "Activity name, category, address, start time and end time are required" });
+  // Validate input (address is optional)
+  if (!name || !category || !time_period) {
+    return res.status(400).json({ error: "Activity name, category, and time period are required" });
   }
 
-  // Insert into database
-  const sql = "INSERT INTO activities (name, category, address, start_time, end_time) VALUES (?, ?, ?, ?, ?)";
-  db.run(sql, [name, category, address, start_time, end_time], function (err) {
+  // Insert into database (4 columns → 4 placeholders)
+  const sql = "INSERT INTO activities (name, category, time_period, address) VALUES (?, ?, ?, ?)";
+  db.run(sql, [name, category, time_period, address || null], function (err) {
     if (err) {
       console.error("DB Insert Error:", err.message);
-      return res.status(400).json({ error: "Activity already exists or invalid" });
+      return res.status(400).json({ error: err.message });
     }
 
     // Success response
-    res.json({ id: this.lastID, name, category, address, start_time, end_time });
+    res.json({
+      id: this.lastID,
+      name,
+      category,
+      time_period,
+      address: address || null
+    });
   });
 });
+
 
 
 // Get one user's choices
 app.get("/choices/:user", (req, res) => {
   const user = req.params.user;
   db.all(
-    `SELECT user_choices.id, activities.name AS activity, activity_id, start_time, end_time
+    `SELECT user_choices.id, activities.name AS activity, activities.category, activities.time_period, activities.address
      FROM user_choices 
      JOIN activities ON user_choices.activity_id = activities.id
      WHERE user_choices.user = ?`,
@@ -69,17 +76,16 @@ app.get("/choices/:user", (req, res) => {
 
 // Add a new choice for a user
 app.post("/choices", (req, res) => {
-  const { user, activity_id} = req.body;
+  const { user, activity_id } = req.body;
 
   if (!user || !activity_id) {
-    return res.status(400).json({ error: "All fields are required" });
+    return res.status(400).json({ error: "User and activity_id are required" });
   }
 
-  const sql =
-    "INSERT INTO user_choices (user, activity_id) VALUES (?, ?, ?, ?)";
+  const sql = "INSERT INTO user_choices (user, activity_id) VALUES (?, ?)";
   db.run(sql, [user, activity_id], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    res.json({ id: this.lastID, user, activity_id});
+    res.json({ id: this.lastID, user, activity_id });
   });
 });
 
@@ -96,7 +102,7 @@ app.delete("/choices/:id", (req, res) => {
 app.get("/choices", (req, res) => {
   db.all(
     `SELECT user_choices.id, user_choices.user, activities.name AS activity,
-            user_choices.activity_id
+            activities.category, activities.time_period, activities.address
      FROM user_choices
      JOIN activities ON user_choices.activity_id = activities.id`,
     [],

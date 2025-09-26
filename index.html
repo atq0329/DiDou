@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="UTF-8" />
-  <title>Group Travel Planner</title>
+  <title>DiDou</title>
 </head>
 
 <body>
@@ -20,10 +20,6 @@
     document.getElementById("memberName").textContent = `${member} (Trip Member)`;
     document.getElementById("tripName").textContent = trip;
   </script>
-
-  <!-- Action buttons -->
-  <button id="wishlistBtn">View wishlist</button>
-  <button id="planBtn">View current plan</button>
 
   <!-- Section A: Wishlist View -->
   <div id="wishlistView">
@@ -42,24 +38,21 @@
             <option value="Food & Drink">Food & Drink</option>
             <option value="Cafe">Cafe</option>
             <option value="Entertainment">Entertainment</option>
-            <option value="Sightseeing">Sightseeing</option>
-            <option value="Shopping">Shopping</option>
           </select>
         </label><br>
-        <label>Begins at: <input type="time" id="activityStart" /></label><br>
-        <label>Ends at: <input type="time" id="activityEnd" /></label><br>
-        <label>Address: <input type="text" id="activityAddress" required /></label><br>
+        <label>Time Period:
+          <select id="activityPeriod" required>
+            <option value="">-- Select a Period --</option>
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Evening">Evening</option>
+          </select>
+        </label><br>
         <button type="submit">Save</button>
       </form>
       <!-- Plus button -->
 
     </div>
-  </div>
-
-  <!-- Section B: Plan View -->
-  <div id="planView" style="display:none;">
-    <h2>Current Plan</h2>
-    <ul id="planList"></ul>
   </div>
 
   <script>
@@ -69,18 +62,6 @@
     document.getElementById("toggleAddBtn").addEventListener("click", () => {
       const box = document.getElementById("addBox");
       box.style.display = box.style.display === "none" ? "block" : "none";
-    });
-
-    // === Switch views (Wishlist view)===
-    document.getElementById("wishlistBtn").addEventListener("click", () => {
-      document.getElementById("wishlistView").style.display = "block";
-      document.getElementById("planView").style.display = "none";
-    });
-
-    document.getElementById("planBtn").addEventListener("click", () => {
-      document.getElementById("wishlistView").style.display = "none";
-      document.getElementById("planView").style.display = "block";
-      loadPlan(); // show current plan if needed
     });
 
     // Load activities
@@ -94,23 +75,11 @@
       activities.forEach(act => {
         // create a button
         const btn = document.createElement("button");
-        btn.textContent = `${act.name}\nAddress: ${act.address}\nStarts: ${act.start_time}   Ends: ${act.end_time}`;
+        btn.textContent = `${act.name}\nTime Period: ${act.time_period}`;
         btn.style.whiteSpace = "pre-line";   // allow \n new lines
         btn.style.textAlign = "left";        // align text to the left
         btn.style.display = "block";
         btn.style.marginBottom = "8px";  // space between buttons
-        // optional: click behavior
-        btn.addEventListener("click", () => {
-          // toggle "selected" style
-          if (btn.style.backgroundColor === "lightgreen") {
-            btn.style.backgroundColor = ""; // unselect
-          } else {
-            btn.style.backgroundColor = "lightgreen"; // select
-          }
-
-          console.log(`You clicked: ${act.name}`);
-        });
-
         // add button into the list
         listDiv.appendChild(btn);
       });
@@ -123,15 +92,15 @@
       // get values from the form
       const name = document.getElementById("activityName").value;
       const category = document.getElementById("activityCategory").value;
-      const start_time = document.getElementById("activityStart").value;
-      const end_time = document.getElementById("activityEnd").value;
-      const address = document.getElementById("activityAddress").value;
+      const time_period = document.getElementById("activityPeriod").value;
+      const addressInput = document.getElementById("activityAddress");
+      const address = addressInput ? addressInput.value : null;
 
       // send to backend
       const res = await fetch(`${API_URL}/activities`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, category, address, end_time, start_time }),
+        body: JSON.stringify({ name, category, time_period}),
       });
 
       if (res.ok) {
@@ -146,31 +115,6 @@
 
     // Run on page load
     loadActivities();
-
-    async function loadPlan() {
-      const username = document.getElementById("memberName").textContent.split(" ")[0];
-
-      try {
-        const res = await fetch(`${API_URL}/plan/${username}`);
-        const data = await res.json();
-
-        const planList = document.getElementById("planList");
-        planList.innerHTML = "";
-
-        const li = document.createElement("li");
-
-        if (!data.content) {
-          li.textContent = "Plan is not finalized until the merging and voting are complete. Please wait for the Trip Leader to finalize.";
-        } else {
-          li.textContent = data.content;
-        }
-
-        planList.appendChild(li);
-      } catch (err) {
-        console.error("Failed to load plan:", err);
-        alert("Error loading current plan.");
-      }
-    }
 
   </script>
 

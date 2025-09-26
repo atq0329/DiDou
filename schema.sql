@@ -5,8 +5,7 @@ CREATE TABLE activities (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE,
     category TEXT,
-    start_time TEXT,
-    end_time TEXT,
+    time_period TEXT,
     address TEXT
 );
 
