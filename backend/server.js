@@ -26,6 +26,77 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---- ROUTES ----
+const bcrypt = require('bcryptjs');
+
+app.post('/api/signin', async (req, res) => {
+  try {
+    const { name, email, password } = req.body || {};
+    if (!name || !email || !password || password.length < 6) {
+      return res.status(400).json({ ok: false, error: 'Please provide name, email, and a 6+ char password.' });
+    }
+
+    // 1) find by email
+    const u = await pool.query(
+      'SELECT id, name, email, password_hash FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (u.rows.length) {
+      // existing user -> verify
+      const user = u.rows[0];
+      const okPw = await bcrypt.compare(password, user.password_hash);
+      if (!okPw) return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+      return res.json({ ok: true, user: { id: user.id, name: user.name, email: user.email } });
+    }
+
+    // 2) create new user (dev sign-up)
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
+    const ins = await pool.query(
+      `INSERT INTO users (name, email, password_hash, password_salt)
+       VALUES ($1,$2,$3,$4)
+       RETURNING id, name, email`,
+      [name, email, hash, salt]
+    );
+    const newUser = ins.rows[0];
+    return res.json({ ok: true, user: newUser });
+
+  } catch (e) {
+    console.error('signin error:', e);
+    return res.status(500).json({ ok: false, error: e.message }); // keep for now while debugging
+  }
+});
+
+
+/** POST /api/reset
+ * Update password for an existing user (match by email and optionally name).
+ */
+app.post('/api/reset', async (req, res) => {
+  try {
+    const { name, email, newPassword } = req.body || {};
+    if (!name || !email || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ ok: false, error: 'Please provide name, email, and a 6+ char new password.' });
+    }
+
+    const u = await pool.query('SELECT id, name FROM users WHERE email = $1', [email]);
+    if (!u.rows.length) return res.status(404).json({ ok: false, error: 'User not found.' });
+    if (u.rows[0].name !== name) {
+      return res.status(400).json({ ok: false, error: 'Name/email do not match.' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(newPassword, salt);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, password_salt = $2 WHERE email = $3',
+      [hash, salt, email]
+    );
+    return res.json({ ok: true });
+
+  } catch (e) {
+    console.error('reset error:', e);
+    return res.status(500).json({ ok: false, error: e.message }); // keep for now while debugging
+  }
+});
 
 // Create trip
 app.post('/api/trips', async (req, res) => {
