@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Leader View</title>
+  <style>
+    body { background:#3439a1; margin:0; font-family:system-ui,Arial,sans-serif; color:#fff; }
+    .row { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:12px 16px; gap:12px; }
+    .row img { justify-self:start; }
+    .row h2 { justify-self:center; margin:0; color:#efc738; font-weight:600; }
+    .page-title { color:#efc738; text-align:center; margin:0; font-weight:700; font-size:46px; }
+    .links { text-align:center; margin-top:14px; }
+    a { color:#ffd25c }
+  </style>
+</head>
+<body>
+  <div class="row">
+    <img src="logo.JPG" alt="Logo" width="106" height="150"/>
+    <h2 id="leaderHeader">(Trip Leader)</h2>
+  </div>
+
+  <h1 id="tripTitle" class="page-title">Loading…</h1>
+  <div class="links">
+    <div id="tripIdLine"></div>
+    <a id="memberLink" href="#">Open Member Availability Page (demo as userId=1)</a>
+  </div>
+
+<script>
+(async function () {
+  const params = new URLSearchParams(location.search);
+  const id = params.get('tripId');
+  const tLine = document.getElementById('tripIdLine');
+
+  if (!id) { document.getElementById('tripTitle').textContent = 'No trip selected'; return; }
+
+  try {
+    const resp = await fetch(`/api/trips/${encodeURIComponent(id)}`);
+    if (!resp.ok) throw new Error('Trip not found');
+    const trip = await resp.json();
+
+    document.getElementById('tripTitle').textContent = trip.name;
+    const leaderText = trip.leader_name ? `(Trip Leader: ${trip.leader_name})` : `(Trip Leader)`;
+    document.getElementById('leaderHeader').textContent = leaderText;
+
+    tLine.textContent = `Trip ID: ${trip.id}`;
+    document.getElementById('memberLink').href =
+      `/MemberAvailability.html?tripId=${encodeURIComponent(trip.id)}&userId=1`;
+  } catch (e) {
+    document.getElementById('tripTitle').textContent = `Trip #${id}`;
+  }
+})();
+</script>
+</body>
+</html>

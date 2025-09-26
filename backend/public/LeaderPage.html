@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Create Trip</title>
+  <style>
+    body{background:#648de5;margin:0;font-family:system-ui,Arial,sans-serif;}
+    .wrap{max-width:900px;margin:22px auto;padding:0 16px}
+    .logo{display:block;margin:0 auto 10px; width:141px; height:auto}
+    .box{background:#3439a1;color:#fff;border-radius:14px;padding:18px 18px 22px}
+    h2{margin:6px 0 16px;text-align:center;color:#efc738;font-weight:800}
+    label{display:block;margin:10px 0 6px;font-weight:700}
+    input,select{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #222;font-size:16px}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .err{display:none;color:#ffdada;background:#7c0000;border-radius:8px;padding:8px 10px;margin-top:10px}
+    .err.show{display:block}
+    .primary{width:100%;margin-top:14px;padding:14px;border:0;border-radius:12px;background:#efc738;font-weight:800;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <img src="logo.JPG" class="logo" alt="logo">
+    <div class="box">
+      <h2>(Trip Leader)</h2>
+
+      <label>Trip Name</label>
+      <input id="tripName" placeholder="Enter your trip name" required>
+
+      <label>Destination City</label>
+      <input id="dest" placeholder="Enter your destination city" required>
+
+      <div class="row">
+        <div>
+          <label>Start date</label>
+          <input type="date" id="drpStart" required>
+        </div>
+        <div>
+          <label>End date</label>
+          <input type="date" id="drpEnd" required>
+        </div>
+      </div>
+
+      <div id="err" class="err"></div>
+
+      <label>Duration (days)</label>
+      <select id="duration" required>
+        <option value="" disabled selected hidden>Select duration…</option>
+      </select>
+
+      <button id="createBtn" class="primary">Create Trip</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const $ = s=>document.querySelector(s);
+  const tripName=$('#tripName'), dest=$('#dest'),
+        start=$('#drpStart'), end=$('#drpEnd'),
+        duration=$('#duration'), createBtn=$('#createBtn'), err=$('#err');
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const iso = d => d.toISOString().slice(0,10);
+
+  start.value = iso(today);
+  end.value   = iso(today);
+
+  function days(a,b){ const A=new Date(a), B=new Date(b); A.setHours(0,0,0,0); B.setHours(0,0,0,0); return Math.floor((B-A)/86400000)+1; }
+  function rebuild(){
+    err.textContent=''; err.classList.remove('show');
+    if(!start.value || !end.value) return;
+    if(end.value < start.value){ err.textContent='End date must be after start date.'; err.classList.add('show'); return; }
+    const d = days(start.value, end.value);
+    duration.innerHTML = '<option value="" disabled selected hidden>Select duration…</option>';
+    const max = Math.min(d, 60);
+    for (let i=1;i<=max;i++){
+      const opt=document.createElement('option');
+      opt.value=String(i); opt.textContent = i===1?'1 day':`${i} days`;
+      duration.appendChild(opt);
+    }
+    duration.value = String(Math.min(d, max));
+  }
+  start.addEventListener('change', ()=>{ end.min = start.value; rebuild(); });
+  end  .addEventListener('change', ()=>{ start.max = end.value; rebuild(); });
+  rebuild();
+
+  createBtn.addEventListener('click', async ()=>{
+    err.textContent=''; err.classList.remove('show');
+    if(!tripName.value.trim() || !dest.value.trim() || !start.value || !end.value || !duration.value){
+      err.textContent='Please complete all fields.'; err.classList.add('show'); return;
+    }
+    try{
+      createBtn.disabled=true;
+      const r = await fetch('/api/trips',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          name: tripName.value.trim(),
+          destination: dest.value.trim(),
+          duration: duration.value,
+          start_date: start.value,
+          end_date: end.value
+        })
+      });
+      if(!r.ok){ const j = await r.json().catch(()=>({error:r.statusText})); throw new Error(j.error); }
+      const row = await r.json();
+      location.href = `/MemberAvailability.html?tripId=${encodeURIComponent(row.id)}`;
+    }catch(e){
+      err.textContent = e.message || 'Failed to create trip.';
+      err.classList.add('show');
+    }finally{ createBtn.disabled=false; }
+  });
+})();
+</script>
+</body>
+</html>
