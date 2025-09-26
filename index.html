@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
-  <!-- Sign-in card -->
+  <!-- Sign-in -->
   <div id="authCard" class="card">
     <header class="logo-row">
       <img src="logo.JPG" alt="DiDou logo" class="logo"/>
@@ -30,11 +30,6 @@
         <button type="button" id="togglePw" class="toggle">Show</button>
       </div>
 
-      <label for="password2">Confirm Password</label>
-      <div class="pw-row">
-        <input id="password2" type="password" placeholder="Re-enter password" required minlength="6">
-      </div>
-
       <div id="msg" class="msg"></div>
       <button id="signBtn" type="submit" class="primary">Sign in</button>
     </form>
@@ -42,7 +37,20 @@
     <p class="forgot"><a href="#" id="forgotLink">Forgot password?</a></p>
   </div>
 
-  <!-- Reset password card -->
+  <!-- Role picker -->
+  <div id="roleCard" class="card hidden" style="text-align:center">
+    <img src="logo.JPG" alt="logo" class="logo" style="margin-bottom:6px"/>
+    <h2 style="margin:4px 0 0">Hello <span id="helloName"></span>,</h2>
+    <p style="margin:6px 0 18px; font-weight:700">Plan your trip now!</p>
+    <p style="color:#667085; margin:0 0 12px">Are you</p>
+    <div style="display:flex; gap:12px; justify-content:center">
+      <button id="btnLeader" class="primary" style="flex:1">Trip Leader</button>
+      <button id="btnMember" class="secondary" style="flex:1">Trip Member</button>
+    </div>
+    <div id="roleMsg" class="msg" style="margin-top:12px"></div>
+  </div>
+
+  <!-- Reset password -->
   <div id="resetCard" class="card hidden">
     <h2 style="margin-top:0">Reset password</h2>
     <form id="resetForm" novalidate>
@@ -55,9 +63,6 @@
       <label for="newPw">New password</label>
       <input id="newPw" type="password" placeholder="At least 6 characters" required minlength="6">
 
-      <label for="newPw2">Confirm new password</label>
-      <input id="newPw2" type="password" placeholder="Re-enter new password" required minlength="6">
-
       <div id="resetMsg" class="msg"></div>
 
       <div style="display:flex; gap:10px">
@@ -68,9 +73,10 @@
   </div>
 
   <!-- Dashboard -->
-  <section id="dashboard" class="hidden">
+  <section id="dashboard" class="hidden" style="text-align:center">
     <h2>Welcome, <span id="userName"></span> 🎉</h2>
-    <button id="logoutBtn" class="secondary">Logout</button>
+    <p id="userRoleLine" style="color:#667085;margin-top:-8px"></p>
+    <button id="logoutBtn" class="secondary" style="margin-top:12px">Logout</button>
   </section>
 
   <script src="app.js" defer></script>
