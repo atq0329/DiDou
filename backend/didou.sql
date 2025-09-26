@@ -1,4 +1,6 @@
--- db/didou.sql  (PostgreSQL)
+-- =========================================================
+-- Merged schema (idempotent)
+-- =========================================================
 
 -- 0) Extensions / helpers FIRST
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -50,26 +52,28 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at  TIMESTAMPTZ
 );
 
--- Fresh trips table with text ID defaulting to gen_trip_id()
-DROP TABLE IF EXISTS trips CASCADE;
-CREATE TABLE trips (
+-- 3) Trips (text ID defaulting to gen_trip_id)
+--    NOTE: We don't DROP in merged schema; we create/alter safely.
+CREATE TABLE IF NOT EXISTS trips (
   id          TEXT PRIMARY KEY DEFAULT gen_trip_id(),
   name        TEXT NOT NULL,
   destination TEXT NOT NULL,
-  duration    TEXT NOT NULL,   -- or INTEGER if you store # of days
+  duration    TEXT NOT NULL,       -- or INTEGER if you store # of days
   start_date  DATE,
   end_date    DATE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   leader_id   INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
--- 3) Join table: users ↔ trips (many-to-many)
+CREATE INDEX IF NOT EXISTS idx_trips_leader_id ON trips(leader_id);
+
+-- 4) Join table: users ↔ trips (many-to-many)
 CREATE TABLE IF NOT EXISTS trip_members (
-  trip_id   TEXT    NOT NULL REFERENCES trips(id)   ON DELETE CASCADE,
-  user_id   INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
-  role      TEXT    NOT NULL DEFAULT 'member' CHECK (role IN ('leader','member')),
-  status    TEXT    NOT NULL DEFAULT 'joined' CHECK (status IN ('invited','joined','left')),
-  joined_at TIMESTAMPTZ     DEFAULT NOW(),
-  updated_at TIMESTAMPTZ    DEFAULT NOW(),
+  trip_id    TEXT    NOT NULL REFERENCES trips(id)   ON DELETE CASCADE,
+  user_id    INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
+  role       TEXT    NOT NULL DEFAULT 'member' CHECK (role IN ('leader','member')),
+  status     TEXT    NOT NULL DEFAULT 'joined' CHECK (status IN ('invited','joined','left')),
+  joined_at  TIMESTAMPTZ     DEFAULT NOW(),
+  updated_at TIMESTAMPTZ     DEFAULT NOW(),
   PRIMARY KEY (trip_id, user_id)
 );
 
@@ -80,6 +84,7 @@ BEGIN
   NEW.updated_at := NOW();
   RETURN NEW;
 END$$;
+
 DROP TRIGGER IF EXISTS trip_members_set_updated_at ON trip_members;
 CREATE TRIGGER trip_members_set_updated_at
 BEFORE UPDATE ON trip_members
@@ -90,7 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_trip_members_trip        ON trip_members (trip_id
 CREATE INDEX IF NOT EXISTS idx_trip_members_user        ON trip_members (user_id);
 CREATE INDEX IF NOT EXISTS idx_trip_members_trip_status ON trip_members (trip_id, status);
 
--- 4) (Optional but recommended) Denormalized live counter on trips
+-- 5) Denormalized live counter on trips
 ALTER TABLE trips
   ADD COLUMN IF NOT EXISTS member_count INTEGER NOT NULL DEFAULT 0;
 
@@ -124,7 +129,7 @@ CREATE TRIGGER trip_members_counter_a_iud
 AFTER INSERT OR UPDATE OR DELETE ON trip_members
 FOR EACH ROW EXECUTE FUNCTION trips_member_count_tg();
 
--- 5) Simple function to get the current joined count (source-of-truth compute)
+-- 6) Source-of-truth compute (optional)
 CREATE OR REPLACE FUNCTION count_joined_members(p_trip_id TEXT)
 RETURNS INTEGER
 LANGUAGE sql STABLE AS $$
@@ -133,14 +138,49 @@ LANGUAGE sql STABLE AS $$
   WHERE trip_id = p_trip_id AND status = 'joined';
 $$;
 
--- 6) (Optional) View that exposes computed counts alongside trips
+-- 7) View with computed counts (optional)
 CREATE OR REPLACE VIEW trips_with_counts AS
 SELECT t.*,
        COUNT(m.*) FILTER (WHERE m.status = 'joined')::int AS joined_count
 FROM trips t
 LEFT JOIN trip_members m ON m.trip_id = t.id
 GROUP BY t.id;
--- Add deadline column
+
+-- 8) Friend’s tables: activities and user_choices
+CREATE TABLE IF NOT EXISTS activities (
+  id          SERIAL PRIMARY KEY,
+  trip_id     TEXT REFERENCES trips(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  category    TEXT,
+  time_period TEXT,
+  address     TEXT
+);
+
+-- unique (trip_id, name, time_period)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'activities_trip_name_timeperiod_key'
+  ) THEN
+    ALTER TABLE activities
+      ADD CONSTRAINT activities_trip_name_timeperiod_key
+      UNIQUE (trip_id, name, time_period);
+  END IF;
+END$$;
+
+CREATE INDEX IF NOT EXISTS idx_activities_trip ON activities(trip_id);
+CREATE INDEX IF NOT EXISTS idx_activities_category ON activities(category);
+
+CREATE TABLE IF NOT EXISTS user_choices (
+  id          SERIAL PRIMARY KEY,
+  username    TEXT,
+  activity_id INTEGER REFERENCES activities(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_user_choices_user ON user_choices(username);
+CREATE INDEX IF NOT EXISTS idx_user_choices_activity ON user_choices(activity_id);
+
+-- 9) Deadline column + constraints on trips
 ALTER TABLE trips
   ADD COLUMN IF NOT EXISTS deadline DATE;
 
@@ -157,7 +197,7 @@ BEGIN
   END IF;
 END$$;
 
--- Keep deadline within [start_date, end_date] when those are present
+-- Keep deadline within [start_date, end_date] when present
 DO $$
 BEGIN
   IF NOT EXISTS (
