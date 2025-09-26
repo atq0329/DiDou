@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DiDou — Sign in</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <!-- Sign-in card -->
+  <div id="authCard" class="card">
+    <header class="logo-row">
+      <img src="logo.JPG" alt="DiDou logo" class="logo"/>
+      <div>
+        <h1>DiDou</h1>
+        <p class="subtitle">Merge travel plans effortlessly</p>
+      </div>
+    </header>
+
+    <form id="signForm" novalidate>
+      <label for="name">Full name</label>
+      <input id="name" type="text" placeholder="Jane Doe" autocomplete="name" required>
+
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="you@example.com" autocomplete="email" required>
+
+      <label for="password">Password</label>
+      <div class="pw-row">
+        <input id="password" type="password" placeholder="Enter password" required minlength="6">
+        <button type="button" id="togglePw" class="toggle">Show</button>
+      </div>
+
+      <label for="password2">Confirm Password</label>
+      <div class="pw-row">
+        <input id="password2" type="password" placeholder="Re-enter password" required minlength="6">
+      </div>
+
+      <div id="msg" class="msg"></div>
+      <button id="signBtn" type="submit" class="primary">Sign in</button>
+    </form>
+
+    <p class="forgot"><a href="#" id="forgotLink">Forgot password?</a></p>
+  </div>
+
+  <!-- Reset password card -->
+  <div id="resetCard" class="card hidden">
+    <h2 style="margin-top:0">Reset password</h2>
+    <form id="resetForm" novalidate>
+      <label for="resetName">Full name</label>
+      <input id="resetName" type="text" placeholder="Jane Doe" required>
+
+      <label for="resetEmail">Email</label>
+      <input id="resetEmail" type="email" placeholder="you@example.com" required>
+
+      <label for="newPw">New password</label>
+      <input id="newPw" type="password" placeholder="At least 6 characters" required minlength="6">
+
+      <label for="newPw2">Confirm new password</label>
+      <input id="newPw2" type="password" placeholder="Re-enter new password" required minlength="6">
+
+      <div id="resetMsg" class="msg"></div>
+
+      <div style="display:flex; gap:10px">
+        <button type="button" id="cancelReset" class="secondary" style="flex:1">Cancel</button>
+        <button type="submit" class="primary" style="flex:1">Update password</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <section id="dashboard" class="hidden">
+    <h2>Welcome, <span id="userName"></span> 🎉</h2>
+    <button id="logoutBtn" class="secondary">Logout</button>
+  </section>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
