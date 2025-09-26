@@ -30,7 +30,7 @@ BEGIN
 END;
 $$;
 
--- 2) Core tables
+-- 2) Core tables: users / sessions
 CREATE TABLE IF NOT EXISTS users (
   id            SERIAL PRIMARY KEY,
   name          TEXT NOT NULL,
@@ -53,12 +53,11 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 -- 3) Trips (text ID defaulting to gen_trip_id)
---    NOTE: We don't DROP in merged schema; we create/alter safely.
 CREATE TABLE IF NOT EXISTS trips (
   id          TEXT PRIMARY KEY DEFAULT gen_trip_id(),
   name        TEXT NOT NULL,
   destination TEXT NOT NULL,
-  duration    TEXT NOT NULL,       -- or INTEGER if you store # of days
+  duration    TEXT NOT NULL,      -- keep TEXT to match current API/UI
   start_date  DATE,
   end_date    DATE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -66,7 +65,19 @@ CREATE TABLE IF NOT EXISTS trips (
 );
 CREATE INDEX IF NOT EXISTS idx_trips_leader_id ON trips(leader_id);
 
--- 4) Join table: users ↔ trips (many-to-many)
+-- 4) Availability (one window per user per trip) — uses TEXT trip_id
+CREATE TABLE IF NOT EXISTS availabilities (
+  id           SERIAL PRIMARY KEY,
+  trip_id      TEXT    NOT NULL REFERENCES trips(id)  ON DELETE CASCADE,
+  user_id      INTEGER NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+  avail_start  DATE    NOT NULL,
+  avail_end    DATE    NOT NULL,
+  UNIQUE (trip_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_avail_trip ON availabilities(trip_id);
+CREATE INDEX IF NOT EXISTS idx_avail_user ON availabilities(user_id);
+
+-- 5) Join table: users ↔ trips (many-to-many, with live member_count)
 CREATE TABLE IF NOT EXISTS trip_members (
   trip_id    TEXT    NOT NULL REFERENCES trips(id)   ON DELETE CASCADE,
   user_id    INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
@@ -95,7 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_trip_members_trip        ON trip_members (trip_id
 CREATE INDEX IF NOT EXISTS idx_trip_members_user        ON trip_members (user_id);
 CREATE INDEX IF NOT EXISTS idx_trip_members_trip_status ON trip_members (trip_id, status);
 
--- 5) Denormalized live counter on trips
+-- denormalized live counter on trips
 ALTER TABLE trips
   ADD COLUMN IF NOT EXISTS member_count INTEGER NOT NULL DEFAULT 0;
 
@@ -129,7 +140,7 @@ CREATE TRIGGER trip_members_counter_a_iud
 AFTER INSERT OR UPDATE OR DELETE ON trip_members
 FOR EACH ROW EXECUTE FUNCTION trips_member_count_tg();
 
--- 6) Source-of-truth compute (optional)
+-- source-of-truth compute (optional)
 CREATE OR REPLACE FUNCTION count_joined_members(p_trip_id TEXT)
 RETURNS INTEGER
 LANGUAGE sql STABLE AS $$
@@ -138,15 +149,7 @@ LANGUAGE sql STABLE AS $$
   WHERE trip_id = p_trip_id AND status = 'joined';
 $$;
 
--- 7) View with computed counts (optional)
-CREATE OR REPLACE VIEW trips_with_counts AS
-SELECT t.*,
-       COUNT(m.*) FILTER (WHERE m.status = 'joined')::int AS joined_count
-FROM trips t
-LEFT JOIN trip_members m ON m.trip_id = t.id
-GROUP BY t.id;
-
--- 8) Friend’s tables: activities and user_choices
+-- 6) Friend’s tables: activities and user_choices
 CREATE TABLE IF NOT EXISTS activities (
   id          SERIAL PRIMARY KEY,
   trip_id     TEXT REFERENCES trips(id) ON DELETE CASCADE,
@@ -156,12 +159,10 @@ CREATE TABLE IF NOT EXISTS activities (
   address     TEXT
 );
 
--- unique (trip_id, name, time_period)
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'activities_trip_name_timeperiod_key'
+    SELECT 1 FROM pg_constraint WHERE conname = 'activities_trip_name_timeperiod_key'
   ) THEN
     ALTER TABLE activities
       ADD CONSTRAINT activities_trip_name_timeperiod_key
@@ -169,7 +170,7 @@ BEGIN
   END IF;
 END$$;
 
-CREATE INDEX IF NOT EXISTS idx_activities_trip ON activities(trip_id);
+CREATE INDEX IF NOT EXISTS idx_activities_trip     ON activities(trip_id);
 CREATE INDEX IF NOT EXISTS idx_activities_category ON activities(category);
 
 CREATE TABLE IF NOT EXISTS user_choices (
@@ -177,44 +178,63 @@ CREATE TABLE IF NOT EXISTS user_choices (
   username    TEXT,
   activity_id INTEGER REFERENCES activities(id) ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS idx_user_choices_user ON user_choices(username);
+CREATE INDEX IF NOT EXISTS idx_user_choices_user     ON user_choices(username);
 CREATE INDEX IF NOT EXISTS idx_user_choices_activity ON user_choices(activity_id);
 
--- 9) Deadline column + constraints on trips
+-- 7) Deadline column + constraints on trips  (must be before the view)
 ALTER TABLE trips
   ADD COLUMN IF NOT EXISTS deadline DATE;
 
--- Never allow a past deadline (NULL is allowed)
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'trips_deadline_not_past'
-  ) THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trips_deadline_not_past') THEN
     ALTER TABLE trips
       ADD CONSTRAINT trips_deadline_not_past
       CHECK (deadline IS NULL OR deadline >= CURRENT_DATE);
   END IF;
 END$$;
 
--- Keep deadline within [start_date, end_date] when present
 DO $$
 BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'trips_deadline_after_start'
-  ) THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trips_deadline_after_start') THEN
     ALTER TABLE trips
       ADD CONSTRAINT trips_deadline_after_start
       CHECK (deadline IS NULL OR start_date IS NULL OR deadline >= start_date);
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'trips_deadline_before_end'
-  ) THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trips_deadline_before_end') THEN
     ALTER TABLE trips
       ADD CONSTRAINT trips_deadline_before_end
       CHECK (deadline IS NULL OR end_date IS NULL OR deadline <= end_date);
   END IF;
 END$$;
+
+-- 8) View with computed counts (create AFTER all trip columns exist)
+DROP VIEW IF EXISTS trips_with_counts;
+
+CREATE VIEW trips_with_counts AS
+SELECT
+  t.id,
+  t.name,
+  t.destination,
+  t.duration,
+  t.start_date,
+  t.end_date,
+  t.created_at,
+  t.leader_id,
+  t.member_count,
+  t.deadline,
+  COUNT(m.*) FILTER (WHERE m.status = 'joined')::int AS joined_count
+FROM trips t
+LEFT JOIN trip_members m ON m.trip_id = t.id
+GROUP BY
+  t.id,
+  t.name,
+  t.destination,
+  t.duration,
+  t.start_date,
+  t.end_date,
+  t.created_at,
+  t.leader_id,
+  t.member_count,
+  t.deadline;
