@@ -262,34 +262,37 @@
         <button id="viewWishlist">View all wishlist</button>
         <button id="editPlan">Edit current plan</button>
     </div>
+    <div class="actions">
+        <button id="planTrip">Plan Trip</button>
+    </div>
 
     <!-- Toast -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
     <script>
-        const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-function formatDMY(iso) {
-  if (!iso) return "—";
+        function formatDMY(iso) {
+            if (!iso) return "—";
 
-  // Try native Date first (works for full ISO strings)
-  const d = new Date(iso);
-  if (!isNaN(d)) {
-    const day = String(d.getDate()).padStart(2, "0");
-    const mon = MONTHS[d.getMonth()];
-    const yr  = d.getFullYear();
-    return `${day} ${mon} ${yr}`;
-  }
+            // Try native Date first (works for full ISO strings)
+            const d = new Date(iso);
+            if (!isNaN(d)) {
+                const day = String(d.getDate()).padStart(2, "0");
+                const mon = MONTHS[d.getMonth()];
+                const yr = d.getFullYear();
+                return `${day} ${mon} ${yr}`;
+            }
 
-  // Fallback: grab the first YYYY-MM-DD if it's a plain date string
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (m) {
-    const [, y, mm, dd] = m;
-    return `${dd} ${MONTHS[+mm - 1]} ${y}`;
-  }
+            // Fallback: grab the first YYYY-MM-DD if it's a plain date string
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+            if (m) {
+                const [, y, mm, dd] = m;
+                return `${dd} ${MONTHS[+mm - 1]} ${y}`;
+            }
 
-  return "—";
-}
+            return "—";
+        }
 
         // Fetch and populate
         (async function () {

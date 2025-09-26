@@ -30,16 +30,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Create trip
 app.post('/api/trips', async (req, res) => {
   try {
-    const { name, destination, duration, start_date, end_date, leader_id } = req.body || {};
-    if (!name || !destination || !duration) {
-      return res.status(400).json({ error: 'name, destination, duration are required' });
-    }
-    const { rows } = await pool.query(
-      `INSERT INTO trips (name, destination, duration, start_date, end_date, leader_id)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING *`,
-      [name, destination, duration, start_date || null, end_date || null, leader_id || null]
-    );
+    // In the POST /api/trips handler:
+const { name, destination, duration, start_date, end_date, leader_id, deadline } = req.body || {};
+
+const { rows } = await pool.query(
+  `INSERT INTO trips (name, destination, duration, start_date, end_date, leader_id, deadline)
+   VALUES ($1,$2,$3,$4,$5,$6,$7)
+   RETURNING *`,
+  [name, destination, duration, start_date || null, end_date || null, leader_id || null, deadline || null]
+);
+
     res.status(201).json(rows[0]);
   } catch (e) {
     console.error(e);

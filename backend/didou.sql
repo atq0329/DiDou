@@ -140,3 +140,41 @@ SELECT t.*,
 FROM trips t
 LEFT JOIN trip_members m ON m.trip_id = t.id
 GROUP BY t.id;
+-- Add deadline column
+ALTER TABLE trips
+  ADD COLUMN IF NOT EXISTS deadline DATE;
+
+-- Never allow a past deadline (NULL is allowed)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'trips_deadline_not_past'
+  ) THEN
+    ALTER TABLE trips
+      ADD CONSTRAINT trips_deadline_not_past
+      CHECK (deadline IS NULL OR deadline >= CURRENT_DATE);
+  END IF;
+END$$;
+
+-- Keep deadline within [start_date, end_date] when those are present
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'trips_deadline_after_start'
+  ) THEN
+    ALTER TABLE trips
+      ADD CONSTRAINT trips_deadline_after_start
+      CHECK (deadline IS NULL OR start_date IS NULL OR deadline >= start_date);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'trips_deadline_before_end'
+  ) THEN
+    ALTER TABLE trips
+      ADD CONSTRAINT trips_deadline_before_end
+      CHECK (deadline IS NULL OR end_date IS NULL OR deadline <= end_date);
+  END IF;
+END$$;
