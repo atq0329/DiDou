@@ -3,10 +3,11 @@ DROP TABLE IF EXISTS activities;
 
 CREATE TABLE activities (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT UNIQUE,
+    name TEXT,
     category TEXT,
     time_period TEXT,
-    address TEXT
+    address TEXT,
+    UNIQUE(name, time_period)
 );
 
 CREATE TABLE user_choices (

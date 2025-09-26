@@ -96,22 +96,34 @@
       const addressInput = document.getElementById("activityAddress");
       const address = addressInput ? addressInput.value : null;
 
-      // send to backend
-      const res = await fetch(`${API_URL}/activities`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, category, time_period}),
-      });
+      try {
+    const res = await fetch(`${API_URL}/activities`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, category, time_period, address }),
+    });
 
-      if (res.ok) {
-        // hide the add box after success
-        document.getElementById("addBox").style.display = "none";
-        loadActivities(); // refresh activity list
+    const data = await res.json(); // always parse response
+
+    if (!res.ok) {
+      // check error message from backend
+      if (data.error.includes("required")) {
+        alert("Please fill in all required fields: name, category, and time period.");
+      } else if (data.error.includes("UNIQUE")) {
+        alert("This activity already exists for the selected time period.");
       } else {
-        const data = await res.json();
         alert("Error: " + data.error);
       }
-    });
+      return;
+    }
+    
+    document.getElementById("addBox").style.display = "none";
+    loadActivities();
+
+  } catch (err) {
+    alert("Network or server error: " + err.message);
+  }
+});
 
     // Run on page load
     loadActivities();
