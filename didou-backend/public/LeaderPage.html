@@ -202,79 +202,115 @@
     <title> Trip Create </title>
 </head>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // Elements
-        const tripName = document.getElementById('tripName');
-        const dest = document.getElementById('dest');
-        const duration = document.getElementById('duration');
-        const panel = document.getElementById('drpPanel');
-        const start = document.getElementById('drpStart');
-        const end = document.getElementById('drpEnd');
+document.addEventListener('DOMContentLoaded', () => {
+  // Elements
+  const tripName = document.getElementById('tripName');
+  const dest     = document.getElementById('dest');
+  const duration = document.getElementById('duration');
+  const start    = document.getElementById('drpStart');
+  const end      = document.getElementById('drpEnd');
+  const createBtn= document.getElementById('creatTrip');
+  const errBox   = document.getElementById('drpErr');
 
-        const createBtn = document.getElementById('creatTrip');
+  // --- helpers ---
+  const showErr = (msg) => { errBox.textContent = msg; errBox.classList.add('show'); };
+  const clearErr = () => { errBox.textContent = ''; errBox.classList.remove('show'); };
 
-        // Helpers
-        const showErr = (msg) => { err.textContent = msg; err.classList.add('show'); };
+  function daysBetweenInclusive(isoStart, isoEnd){
+    const s = new Date(isoStart);
+    const e = new Date(isoEnd);
+    if (Number.isNaN(s) || Number.isNaN(e)) return null;
+    s.setHours(0,0,0,0);
+    e.setHours(0,0,0,0);
+    return Math.floor((e - s) / 86400000) + 1;
+  }
 
-        // Simple field-level validation helper (for empty inputs)
-        function isFilled(el) {
-            if (!el.value.trim()) {
-                el.setCustomValidity('Required');
-                el.reportValidity();
-                return false;
-            }
-            el.setCustomValidity('');
-            return true;
-        }
+  // Build the duration <select> as: 1 day, 2 days, ... N days
+  function rebuildDurationOptions(totalDays){
+    duration.innerHTML = ''; // clear all
+    // placeholder
+    const ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = 'Select duration…';
+    ph.disabled = true; ph.hidden = true; ph.selected = true;
+    duration.appendChild(ph);
 
-        // Submit/Create
-        // ... keep your existing code above ...
+    // cap to avoid silly long lists (adjust if you want)
+    const max = Math.min(totalDays, 60);
+    for (let i = 1; i <= max; i++){
+      const opt = document.createElement('option');
+      opt.value = String(i); // store the number of days
+      opt.textContent = i === 1 ? '1 day' : `${i} days`;
+      duration.appendChild(opt);
+    }
 
-        // 3) Insert into local SQLite via our Express API
-        createBtn.addEventListener('click', async () => {
-            // (keep your validation)
-            const okName = tripName.value.trim() !== '';
-            const okDest = dest.value.trim() !== '';
-            const okDur = duration.value.trim() !== '';
-            if (!(okName && okDest && okDur)) return;
+    // default to full range (optional)
+    if (totalDays >= 1){
+      duration.value = String(Math.min(totalDays, max));
+    }
+  }
 
-            const payload = {
-                name: tripName.value.trim(),
-                destination: dest.value.trim(),
-                duration: duration.value,
-                start_date: start.value || null,
-                end_date: end.value || null
-            };
+  function syncDurationFromDates(){
+    clearErr();
+    if (!start.value || !end.value) return;          // wait until both picked
+    if (end.value < start.value) { showErr('End date must be after start date.'); return; }
+    const d = daysBetweenInclusive(start.value, end.value);
+    if (!d || d <= 0) return;
+    rebuildDurationOptions(d);
+  }
 
-            try {
-                const resp = await fetch('/api/trips', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (!resp.ok) {
-                    const err = await resp.json().catch(() => ({ error: 'Unknown error' }));
-                    alert('Failed to save trip: ' + (err.error || resp.statusText));
-                    return;
-                }
-                const row = await resp.json();   // contains the inserted trip with its id
-                window.location.href = `/LeaderView.html?tripId=${encodeURIComponent(row.id)}`;
+  // keep date constraints consistent + update options
+  start.addEventListener('change', () => { end.min   = start.value || ''; syncDurationFromDates(); });
+  end  .addEventListener('change',   () => { start.max = end.value   || ''; syncDurationFromDates(); });
 
-                console.log('Saved to local DB:', row);
-                alert('Trip saved locally in SQLite!');
-                // Optional: reset form
-                // tripName.value=''; dest.value=''; duration.value=''; start.value=''; end.value='';
-            } catch (e) {
-                console.error(e);
-                alert('Network error saving trip (is the server running?)');
-            }
-            if (!start.value || !end.value) { alert('Please choose both start and end dates.'); return; }
-            if (end.value < start.value) { alert('End date must be after start date.'); return; }
-        });
+  // Submit/Create
+  createBtn.addEventListener('click', async () => {
+    clearErr();
 
+    // basic validation
+    if (!tripName.value.trim() || !dest.value.trim()) return;
+    if (!start.value || !end.value) { showErr('Please choose both start and end dates.'); return; }
+    if (end.value < start.value)    { showErr('End date must be after start date.'); return; }
+    if (!duration.value)            { showErr('Please choose a duration.'); return; }
 
-    });
+    const payload = {
+      name:        tripName.value.trim(),
+      destination: dest.value.trim(),
+      // duration is now a number of days as a string ("1", "2", ...). You can keep it like this
+      // or convert to number before sending if you prefer:
+      duration:    duration.value,
+      start_date:  start.value,
+      end_date:    end.value
+    };
+
+    try {
+      createBtn.disabled = true;
+      const resp = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error:'Unknown error' }));
+        alert('Failed to save trip: ' + (error || resp.statusText));
+        createBtn.disabled = false;
+        return;
+      }
+      const row = await resp.json();
+      window.location.href = `/LeaderView.html?tripId=${encodeURIComponent(row.id)}`;
+    } catch (e) {
+      console.error(e);
+      alert('Network error saving trip (is the server running?)');
+      createBtn.disabled = false;
+    }
+  });
+
+  // Optional: if both dates are prefilled on load
+  syncDurationFromDates();
+});
 </script>
+
+
 
 <body style="background-color: #648de5;">
     <div style="text-align:center;">
@@ -287,15 +323,6 @@
         <div class="error-msg">Please enter a trip name.</div>
         <br> <br> <label for="dest" style="color: white;font-weight:bold;">Destination City</label>
         <input type="text" id="dest" name="dest" placeholder="Enter your destination city" required>
-        <br> <br> <label for="duration" style="color: white;font-weight:bold;">Duration</label>
-        <select id="duration" name="duration" class="select" required>
-            <option value="" disabled selected hidden>Select duration…</option>
-            <option value="lt1w">Less than a week</option>
-            <option value="1w">One week</option>
-            <option value="gt1w">More than a week</option>
-            <option value="gt1m">More than a month</option>
-        </select>
-        <br> <br>
         <div class="drp-panel" id="drpPanel">
             <div class="drp-row">
                 <label style="color: white;font-weight:bold;">Start date:</label>
@@ -305,8 +332,16 @@
             </div>
             <div class="drp-error" id="drpErr"></div>
         </div>
-        <br>
+        <br><label for="duration" style="color: white;font-weight:bold;">Duration</label>
+        <select id="duration" name="duration" class="select" required>
+            <option value="" disabled selected hidden>Select duration…</option>
+            <option value="lt1w">Less than a week</option>
+            <option value="1w">One week</option>
+            <option value="gt1w">More than a week</option>
+            <option value="gt1m">More than a month</option>
+        </select>
         <div style="text-align:center;">
+            <br>
             <button type="button" id="creatTrip" style="font-weight: bold;">Create Trip</button>
         </div>
     </div>

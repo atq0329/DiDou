@@ -1,10 +1,11 @@
 -- db/schema.sql
 CREATE TABLE IF NOT EXISTS trips (
-  id          SERIAL PRIMARY KEY,
+  id          INTEGER PRIMARY KEY,
   name        TEXT NOT NULL,
   destination TEXT NOT NULL,
-  duration    TEXT NOT NULL,  -- 'lt1w' | '1w' | 'gt1w' | 'gt1m'
+  duration    TEXT NOT NULL,  
   start_date  DATE,
   end_date    DATE,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  leader_id   INTEGER FOREIGN KEY,
 );

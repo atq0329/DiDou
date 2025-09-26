@@ -1,74 +1,105 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Leader View</title>
-  <style>
-    body { background:#3439a1; margin:0; font-family: system-ui, Arial, sans-serif; }
-    .row{
-      display:flex; align-items:center; gap:12px;
-      padding:12px 16px;
-    }
-    .row h2{
-      color:#efc738; font-weight:600; margin:0;
-    }
-    /* optional: keep logo left but visually center the title within the full width */
-    .header {
-      position: relative; display:flex; align-items:center; padding:12px 16px;
-    }
-    .header img { height: 64px; width:auto; }
-    .header h2 {
-      position:absolute; left:0; right:0; text-align:center; margin:0; color:#efc738; font-weight:600;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leader View</title>
+    <style>
+        body {
+            background: #3439a1;
+            margin: 0;
+            font-family: system-ui, Arial, sans-serif;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            /* left space | title | right space */
+            align-items: center;
+            padding: 12px 16px;
+            gap: 12px;
+        }
+
+        .row img {
+            justify-self: start;
+        }
+
+        .row h2 {
+            justify-self: center;
+            margin: 0;
+            /* remove invalid margin:center */
+            color: #efc738;
+            font-weight: 100;
+        }
+
+        /* optional: keep logo left but visually center the title within the full width */
+        .header {
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+        }
+
+        .header img {
+            height: 64px;
+            width: auto;
+        }
+
+        .header h2 {
+            position: absolute;
+            left: 0;
+            right: 0;
+            text-align: center;
+            margin: 0;
+            color: #efc738;
+            font-weight: 600;
+        }
+
+        .page-title {
+            color: #efc738;
+            text-align: center;
+            margin: 0;
+            font-weight: 700;
+            font-size: 50px;
+        }
+    </style>
 </head>
+
 <body>
-  <!-- choose one of the layouts: simple row OR centered header -->
-  <!-- Simple row (logo + title left-aligned) -->
-  <!--
-  <div class="row">
-    <img src="logo.png" alt="Logo" width="106" height="150" />
-    <h2>(Trip Leader)</h2>
-  </div>
-  -->
+    <div class="row">
+        <img src="logo.png" alt="Logo" width="106" height="150" />
+        <h2>(Trip Leader)</h2>
+    </div>
+    <h1 id="tripTitle" class="page-title"></h1>
+    <div style="text-align:center;">
+            <br>
+            <button type="button" id="creatTrip" style="font-weight: bold;">Create Trip</button>
+    </div>
+    <script>
+        (async function () {
+            const params = new URLSearchParams(location.search);
+            const id = params.get('tripId');
+            if (!id) {
+                document.getElementById('tripTitle').textContent = 'No trip selected';
+                return;
+            }
+            try {
+                const resp = await fetch(`/api/trips/${encodeURIComponent(id)}`);
+                if (!resp.ok) throw new Error('Trip not found');
+                const trip = await resp.json();
 
-  <!-- Centered title while keeping logo on the left -->
-  <div class="header">
-    <img src="logo.png" alt="Logo">
-    <h2>(Trip Leader)</h2>
-  </div>
-
-  <main style="padding:16px; color:white;">
-    <h3 id="tripTitle" style="margin-top:8px;"></h3>
-    <p id="tripMeta"></p>
-  </main>
-
-  <script>
-    (async function () {
-      const params = new URLSearchParams(location.search);
-      const id = params.get('tripId');
-      if (!id) {
-        document.getElementById('tripTitle').textContent = 'No trip selected';
-        return;
-      }
-
-      // Fetch the trip details (see step 3 to add this route on the server)
-      try {
-        const resp = await fetch(`/api/trips/${encodeURIComponent(id)}`);
-        if (!resp.ok) throw new Error('Trip not found');
-        const trip = await resp.json();
-
-        document.getElementById('tripTitle').textContent =
-          `${trip.name} — ${trip.destination}`;
-        document.getElementById('tripMeta').textContent =
-          `Duration: ${trip.duration} | Start: ${trip.start_date ?? '—'} | End: ${trip.end_date ?? '—'}`;
-      } catch (e) {
-        document.getElementById('tripTitle').textContent = `Trip #${id}`;
-        document.getElementById('tripMeta').textContent = 'Could not load trip details.';
-        console.error(e);
-      }
-    })();
-  </script>
+                document.getElementById('tripTitle').textContent = trip.name;  // ← trip name
+                document.getElementById('tripMeta').textContent =
+                    `Destination: ${trip.destination} • Duration: ${trip.duration} • ` +
+                    `Start: ${trip.start_date ?? '—'} • End: ${trip.end_date ?? '—'}`;
+            } catch (e) {
+                document.getElementById('tripTitle').textContent = `Trip #${id}`;
+                document.getElementById('tripMeta').textContent = 'Could not load trip details.';
+                console.error(e);
+            }
+        })();
+    </script>
 </body>
+
 </html>
