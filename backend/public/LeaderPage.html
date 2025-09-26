@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <style>
+        .drp-panel {
+            display: block;
+            margin-top: 8px;
+        }
+
+        .drp-panel.show {
+            display: block;
+        }
+
+
+        .drp-error {
+            color: #ffdddd;
+            background: #7c0000;
+            padding: 6px 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .drp-error.show {
+            display: block;
+        }
+
+        .drp-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .drp-row label {
+            color: white;
+            font-weight: bold;
+        }
+
+        #creatTrip {
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 0;
+            background: #efc738;
+            cursor: pointer;
+        }
+
+        .header {
+            color: rgb(8, 27, 240);
+            font-size: 48px;
+            font-style: bold;
+        }
+
+        .subHead {
+            color: rgb(113, 114, 125);
+            font-size: 24px;
+        }
+
+        .chosenCircle {
+            width: 20px;
+            height: 20px;
+            background-color: blue;
+            /* Optional: Fill the circle with a color */
+            border-radius: 50%;
+            /* This is the key to making it a circle */
+            border: 2px solid blue;
+            /* Optional: Add a border */
+        }
+
+        .otherCircle {
+            width: 20px;
+            height: 20px;
+            background-color: rgb(113, 114, 125);
+            /* Optional: Fill the circle with a color */
+            border-radius: 50%;
+            /* This is the key to making it a circle */
+            border: 2px solid rgb(113, 114, 125);
+            /* Optional: Add a border */
+        }
+
+        .divider {
+            display: inline-block;
+            width: 12px;
+            /* length of the line */
+            height: 2px;
+            /* thickness */
+            background-color: rgb(113, 114, 125);
+            vertical-align: middle;
+            margin: 0 8px;
+            /* spacing around the line */
+        }
+
+        /* Input base style */
+        input[type="text"] {
+            padding: 8px 10px;
+            border: 1px solid black;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        /* Show red border after the user leaves the field and it's still empty */
+        input:invalid:not(:focus):not(:placeholder-shown) {
+            border-color: #d00;
+        }
+
+        /* Optional inline error text */
+        .error-msg {
+            display: none;
+            color: #d00;
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        input:invalid:not(:focus):not(:placeholder-shown)+.error-msg {
+            display: block;
+        }
+
+        .bigBox {
+            width: 500px;
+            /* Set the width of the box */
+            height: 300px;
+            /* Set the height of the box */
+            background-color: #3439a1;
+            /* Set a background color */
+            border: 1px solid #333;
+            /* Add a border */
+            padding: 20px;
+            /* Add padding inside the box */
+            margin: 30px auto;
+            /* Center the box horizontally and add margin */
+            border-radius: 8px;
+            /* Round the corners */
+            text-align: left;
+            /* Center the text inside the box */
+        }
+
+        .bigBox h2 {
+            color: #efc738;
+            /* Style the heading inside the box */
+            text-align: center;
+        }
+
+        .bigBox p {
+            font-family: sans-serif;
+            /* Style the paragraph inside the box */
+        }
+
+        /* Base select styling */
+        .select {
+            width: 100%;
+            max-width: 320px;
+            padding: 10px 40px 10px 12px;
+            /* extra right padding for the arrow */
+            font-size: 14px;
+            border: 1.5px solid #999;
+            border-radius: 8px;
+            background-color: #fff;
+
+            /* remove native arrows */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+
+            /* custom arrow (SVG as background image) */
+            background-image:
+                url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+        }
+
+        /* Hover / focus states */
+        .select:hover {
+            border-color: #666;
+        }
+
+        .select:focus {
+            outline: none;
+            border-color: #2962ff;
+            box-shadow: 0 0 0 3px rgba(41, 98, 255, 0.15);
+        }
+
+        /* Disabled look */
+        .select:disabled {
+            color: #999;
+            background-color: #f5f5f5;
+            border-color: #ddd;
+            cursor: not-allowed;
+        }
+
+        /* Optional: invalid (empty) look using the placeholder option */
+        .select:invalid {
+            color: #777;
+            /* placeholder grey */
+        }
+    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title> Trip Create </title>
+</head>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Elements
+  const tripName = document.getElementById('tripName');
+  const dest     = document.getElementById('dest');
+  const duration = document.getElementById('duration');
+  const start    = document.getElementById('drpStart');
+  const end      = document.getElementById('drpEnd');
+  const createBtn= document.getElementById('creatTrip');
+  const errBox   = document.getElementById('drpErr');
+
+  function updateLeaderHeader(){
+        const n = leaderName.value.trim();
+        leaderHeader.textContent = n ? `(Trip Leader: ${n})` : `(Trip Leader)`;
+      }
+      leaderName.addEventListener('input', updateLeaderHeader);
+      updateLeaderHeader();
+  // --- helpers ---
+  const showErr = (msg) => { errBox.textContent = msg; errBox.classList.add('show'); };
+  const clearErr = () => { errBox.textContent = ''; errBox.classList.remove('show'); };
+
+  function daysBetweenInclusive(isoStart, isoEnd){
+    const s = new Date(isoStart);
+    const e = new Date(isoEnd);
+    if (Number.isNaN(s) || Number.isNaN(e)) return null;
+    s.setHours(0,0,0,0);
+    e.setHours(0,0,0,0);
+    return Math.floor((e - s) / 86400000) + 1;
+  }
+
+  // Build the duration <select> as: 1 day, 2 days, ... N days
+  function rebuildDurationOptions(totalDays){
+    duration.innerHTML = ''; // clear all
+    // placeholder
+    const ph = document.createElement('option');
+    ph.value = '';
+    ph.textContent = 'Select duration…';
+    ph.disabled = true; ph.hidden = true; ph.selected = true;
+    duration.appendChild(ph);
+
+    // cap to avoid silly long lists (adjust if you want)
+    const max = Math.min(totalDays, 60);
+    for (let i = 1; i <= max; i++){
+      const opt = document.createElement('option');
+      opt.value = String(i); // store the number of days
+      opt.textContent = i === 1 ? '1 day' : `${i} days`;
+      duration.appendChild(opt);
+    }
+
+    // default to full range (optional)
+    if (totalDays >= 1){
+      duration.value = String(Math.min(totalDays, max));
+    }
+  }
+
+  function syncDurationFromDates(){
+    clearErr();
+    if (!start.value || !end.value) return;          // wait until both picked
+    if (end.value < start.value) { showErr('End date must be after start date.'); return; }
+    const d = daysBetweenInclusive(start.value, end.value);
+    if (!d || d <= 0) return;
+    rebuildDurationOptions(d);
+  }
+
+  // keep date constraints consistent + update options
+  start.addEventListener('change', () => { end.min   = start.value || ''; syncDurationFromDates(); });
+  end  .addEventListener('change',   () => { start.max = end.value   || ''; syncDurationFromDates(); });
+
+  // Submit/Create
+  createBtn.addEventListener('click', async () => {
+    clearErr();
+
+    // basic validation
+    if (!tripName.value.trim() || !dest.value.trim()) return;
+    if (!start.value || !end.value) { showErr('Please choose both start and end dates.'); return; }
+    if (end.value < start.value)    { showErr('End date must be after start date.'); return; }
+    if (!duration.value)            { showErr('Please choose a duration.'); return; }
+
+    const payload = {
+      name:        tripName.value.trim(),
+      destination: dest.value.trim(),
+      // duration is now a number of days as a string ("1", "2", ...). You can keep it like this
+      // or convert to number before sending if you prefer:
+      duration:    duration.value,
+      start_date:  start.value,
+      end_date:    end.value
+    };
+
+    try {
+      createBtn.disabled = true;
+      const resp = await fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!resp.ok) {
+        const { error } = await resp.json().catch(() => ({ error:'Unknown error' }));
+        alert('Failed to save trip: ' + (error || resp.statusText));
+        createBtn.disabled = false;
+        return;
+      }
+      const row = await resp.json();
+      window.location.href = `/LeaderView.html?tripId=${encodeURIComponent(row.id)}`;
+    } catch (e) {
+      console.error(e);
+      alert('Network error saving trip (is the server running?)');
+      createBtn.disabled = false;
+    }
+  });
+
+  // Optional: if both dates are prefilled on load
+  syncDurationFromDates();
+});
+</script>
+
+
+
+<body style="background-color: #648de5;">
+    <div style="text-align:center;">
+        <img src="logo.png" alt="Logo" width="141" height="200">
+    </div>
+    <div class="bigBox">
+        <h2>(Trip Leader) </h2>
+        <label for="tripName" style="color: white;font-weight:bold;">Trip Name</label>
+        <input type="text" id="tripName" name="tripName" placeholder="Enter your trip name" required>
+        <div class="error-msg">Please enter a trip name.</div>
+        <br> <br> <label for="dest" style="color: white;font-weight:bold;">Destination City</label>
+        <input type="text" id="dest" name="dest" placeholder="Enter your destination city" required>
+        <div class="drp-panel" id="drpPanel">
+            <div class="drp-row">
+                <label style="color: white;font-weight:bold;">Start date:</label>
+                <input type="date" id="drpStart" required>
+                <label style="color: white;font-weight:bold;">End date:</label>
+                <input type="date" id="drpEnd" required>
+            </div>
+            <div class="drp-error" id="drpErr"></div>
+        </div>
+        <br><label for="duration" style="color: white;font-weight:bold;">Duration</label>
+        <select id="duration" name="duration" class="select" required>
+            <option value="" disabled selected hidden>Select duration…</option>
+            <option value="lt1w">Less than a week</option>
+            <option value="1w">One week</option>
+            <option value="gt1w">More than a week</option>
+            <option value="gt1m">More than a month</option>
+        </select>
+        <div style="text-align:center;">
+            <br>
+            <button type="button" id="creatTrip" style="font-weight: bold;">Create Trip</button>
+        </div>
+    </div>
+</body>
+
+</html>
