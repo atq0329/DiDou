@@ -1,0 +1,211 @@
+/* ---------- Theme ---------- */
+:root{
+  --bg: #2E3192;           /* deep royal blue */
+  --bg-2: #26297c;         /* slightly darker for shadows */
+  --accent: #F1C644;       /* gold headings */
+  --card: #5f94e1;         /* light-blue activity pill */
+  --card-2: #4c80cf;
+  --muted: #e7e7e7;        /* form card */
+  --text: #ffffff;
+  --btn: #6b9df0;          /* Save button */
+  --btn-2: #5887d8;
+  --plus: #f29ac1;         /* pink + circle */
+  --shadow: 0 8px 26px rgba(0,0,0,.25);
+}
+
+*{ box-sizing: border-box; }
+html,body{
+  height:100%;
+}
+body{
+  margin:0;
+  font-family: "Poppins", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding: 28px 18px 60px;
+}
+
+/* ---------- Page header ---------- */
+#memberName{
+  margin: 6px 0 2px;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-align:center;
+  opacity: .95;
+  font-family: 'Red Rose', cursive;
+}
+#tripName{
+  margin: 0 0 26px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  text-align:center;
+  text-shadow: 0 2px 0 rgba(0,0,0,.1);
+  font-family: 'Red Rose', cursive;
+}
+
+/* ---------- Section container ---------- */
+#wishlistView{
+  width: min(980px, 100%);
+  text-align: center;
+}
+
+/* Section title like “Add to your activity wishlist!” in mock */
+#wishlistView > h2{
+  margin: 10px 0 18px;
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  font-weight: 700;
+}
+
+/* ---------- Activity list ---------- */
+#activityList{
+  max-height: 320px;              /* you had 200px inline; this still works as CSS default */
+  overflow-y: auto;
+  padding: 8px 6px 2px;
+  margin: 6px auto 22px;
+  width: min(820px, 100%);
+}
+
+/* The JS creates plain <button>s inside #activityList */
+#activityList > button{
+  display:block;
+  width: 100%;
+  text-align: left;
+  white-space: pre-line;          /* keep the \n line break */
+  background: linear-gradient(180deg, var(--card), var(--card-2));
+  color: #fff;
+  border: none;
+  border-radius: 16px;
+  padding: 18px 22px;
+  margin: 0 auto 12px;
+  font-size: 1rem;
+  font-weight: 500;
+  box-shadow: 0 6px 0 rgba(0,0,0,.12), 0 10px 24px rgba(0,0,0,.22);
+  transition: transform .06s ease, box-shadow .2s ease, opacity .2s ease;
+  cursor: pointer;
+}
+#activityList > button::first-line{
+  font-size: 1.15rem;             /* bigger first line: activity name */
+  font-weight: 700;
+}
+#activityList > button:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 rgba(0,0,0,.12), 0 18px 30px rgba(0,0,0,.28);
+}
+#activityList > button:active{
+  transform: translateY(0);
+}
+
+/* Narrow, subtle scrollbar */
+#activityList::-webkit-scrollbar{ width: 10px; }
+#activityList::-webkit-scrollbar-thumb{
+  background: rgba(255,255,255,.25);
+  border-radius: 10px;
+}
+#activityList{ scrollbar-color: rgba(255,255,255,.25) transparent; }
+
+/* ---------- Floating + button ---------- */
+#toggleAddBtn{
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: var(--plus);
+  color: #1f244b;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  display:inline-grid;
+  place-items:center;
+  margin: 6px auto 20px;
+  transition: transform .1s ease, filter .2s ease;
+}
+#toggleAddBtn:hover{ filter: brightness(1.05); transform: translateY(-1px); }
+#toggleAddBtn:active{ transform: translateY(0); }
+
+/* ---------- Add form card ---------- */
+#addBox{
+  /* your inline `display:none` will still control visibility */
+  width: min(620px, 92vw);
+  margin: 0 auto;
+  background: var(--muted);
+  color: #1e1e1e;
+  border-radius: 14px;
+  padding: 20px 22px 22px;
+  box-shadow: var(--shadow);
+  text-align:left;
+}
+
+#addBox form{
+  display:grid;
+  gap: 12px;
+}
+
+#addBox label{
+  font-weight: 600;
+  font-size: .98rem;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+#addBox input[type="text"],
+#addBox select{
+  appearance:none;
+  -webkit-appearance:none;
+  display:block;
+  width: 100%;
+  max-width: 360px;
+  background:#fff;
+  border: 1px solid #d7d7d7;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  outline: none;
+}
+#addBox select{
+  background-image:
+    linear-gradient(45deg, transparent 50%, #7c7c7c 50%),
+    linear-gradient(135deg, #7c7c7c 50%, transparent 50%),
+    linear-gradient(to right, #ddd, #ddd);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 12px) calc(50% - 3px),
+    calc(100% - 2.2rem) 50%;
+  background-size: 6px 6px, 6px 6px, 1px 60%;
+  background-repeat: no-repeat;
+}
+
+/* Save button */
+#addBox button[type="submit"]{
+  justify-self: start;
+  background: linear-gradient(180deg, var(--btn), var(--btn-2));
+  border:none;
+  color:#fff;
+  padding: 10px 22px;
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing:.2px;
+  cursor:pointer;
+  box-shadow: 0 6px 16px rgba(24,48,120,.35);
+  transition: filter .2s ease, transform .06s ease;
+}
+#addBox button[type="submit"]:hover{ filter: brightness(1.05); }
+#addBox button[type="submit"]:active{ transform: translateY(1px); }
+
+
+@media (max-width: 560px){
+  #activityList{ padding-left: 0; padding-right: 0; }
+  #activityList > button{ border-radius: 14px; padding: 16px 18px; }
+  #addBox label{ flex-direction: column; align-items: flex-start; gap: 6px; }
+  #addBox input[type="text"], #addBox select{ max-width: 100%; }
+}
