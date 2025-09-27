@@ -3,184 +3,235 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Plan availability</title>
+  <title>DiDou — Plan Availability</title>
   <style>
-    body{background:#3439a1;margin:0;font-family:system-ui,Arial,sans-serif;color:#fff}
-    .wrap{max-width:980px;margin:20px auto;padding:16px}
-    .board{background:#262c8c;border-radius:12px;padding:20px}
-    h1{margin:8px 0 2px;color:#efc738;font-size:46px;text-align:center}
-    h3{margin:0 0 18px;text-align:center;color:#cfd6ff}
-    .chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:10px}
-    .chip{padding:8px 10px;border-radius:6px;background:#61688f;color:#e7e9ff;cursor:pointer;user-select:none}
-    .chip.sel{background:#27ae60;color:#fff}
-    .bar{display:flex;gap:10px;justify-content:center;margin-top:16px}
-    button{border:0;border-radius:10px;padding:10px 16px;cursor:pointer}
-    .primary{background:#efc738;color:#212121;font-weight:700}
-    .secondary{background:#f2f2f2;color:#222}
-    table{width:100%;margin-top:18px;border-collapse:collapse;background:#fff;color:#222;border-radius:10px;overflow:hidden}
-    th,td{padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:left}
-    .msg{margin-top:10px;text-align:center}
-    .err{display:none;color:#ffdada;background:#7c0000;padding:6px 10px;border-radius:6px}
-    .err.show{display:inline-block}
-    .ok{display:none;background:#0c5132;color:#c7f0da;padding:6px 10px;border-radius:6px}
-    .ok.show{display:inline-block}
+    :root{
+      --bg:#2b3398;
+      --panel:#232a86;
+      --chip:#6b739e;
+      --chip-sel:#1bb36b;
+      --accent:#efc738;
+      --text:#ffffff;
+    }
+    html,body{margin:0;height:100%;font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1100px;margin:18px auto;padding:0 16px}
+    .logo-top{ text-align:center;margin:4px 0 10px }
+    .logo-top img{ width:110px;height:110px;object-fit:contain }
+
+    .board{background:var(--panel);border-radius:16px;padding:24px 20px;box-shadow:0 16px 40px rgba(0,0,0,.25)}
+    .name-line{ text-align:center; opacity:.95; font-size:18px; margin:4px 0 6px }
+    .trip-title{ text-align:center; font-size:52px; margin:4px 0 8px; color:var(--accent); font-weight:800; letter-spacing:.5px }
+    .sub{ text-align:center; color:#d6dcff; margin:6px 0 18px; font-size:18px }
+
+    .month{ text-align:center; font-size:34px; font-weight:800; margin:10px 0 8px }
+    .chips{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:10px }
+    .chip{ padding:10px 16px; border-radius:8px; background:var(--chip); color:#eef1ff; user-select:none; cursor:pointer;
+           transition:transform 80ms ease, background 120ms ease; }
+    .chip:hover{ transform:translateY(-1px) }
+    .chip.sel{ background:var(--chip-sel); color:#fff }
+
+    .toolbar{ display:flex; gap:12px; justify-content:center; margin:16px 0 8px }
+    .btn{ border:0; border-radius:10px; padding:12px 18px; cursor:pointer; font-weight:800 }
+    .primary{ background:var(--accent); color:#222 }
+    .secondary{ background:#f2f2f2; color:#222 }
+
+    .msg{ text-align:center; margin-top:8px }
+    .err{ background:#7c0000; color:#ffdada; display:inline-block; padding:8px 12px; border-radius:8px }
+    .ok{  background:#0d5f3a; color:#c7f0da; display:inline-block; padding:8px 12px; border-radius:8px }
+
+    h3.table-title{ text-align:center;margin:22px 0 10px }
+    table{ width:100%; border-collapse:collapse; background:#fff; color:#222; border-radius:10px; overflow:hidden }
+    th,td{ padding:10px 12px; border-bottom:1px solid #e5e7eb; text-align:left; font-size:15px }
+    th{ background:#f8fafc }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div style="text-align:center;margin-bottom:12px"><img src="logo.JPG" width="120" alt=""></div>
-    <div class="board">
-      <div id="who" style="text-align:center;margin-bottom:6px;opacity:.9"></div>
-      <h1 id="tripName">TRIP</h1>
-      <h3 id="subtitle">Loading…</h3>
+<div class="wrap">
+  <div class="logo-top"><img src="logo.JPG" alt="DiDou logo"></div>
 
-      <div id="chips" class="chips"></div>
+  <div class="board">
+    <div id="nameLine" class="name-line">Trip Member</div>
+    <div id="tripTitle" class="trip-title">TRIP_NAME</div>
 
-      <div class="bar">
-        <button id="clearBtn" class="secondary">Clear</button>
-        <button id="submitBtn" class="primary">Submit availability</button>
-      </div>
-      <div class="msg">
-        <span id="err" class="err"></span>
-        <span id="ok" class="ok">Saved!</span>
-      </div>
+    <div class="sub" id="subtitle">Loading…</div>
 
-      <h3 style="margin-top:24px">All members</h3>
-      <table>
-        <thead><tr><th>Name</th><th>Email</th><th>Start</th><th>End</th><th>Days</th></tr></thead>
-        <tbody id="tbody"></tbody>
-      </table>
+    <div class="month" id="monthLbl">Month</div>
+    <div id="chips" class="chips"></div>
+
+    <div class="toolbar">
+      <button id="clearBtn" class="btn secondary">Clear</button>
+      <button id="submitBtn" class="btn primary">Submit availability</button>
     </div>
+    <div id="msg" class="msg"></div>
+
+    <h3 class="table-title">All members</h3>
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Start</th><th>End</th><th>Days</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
   </div>
+</div>
 
 <script>
-(() => {
-  const params = new URLSearchParams(location.search);
-  const tripId = params.get('tripId');
-  const current = JSON.parse(localStorage.getItem('didou_user') || '{}');
-  const currentUserId = Number(params.get('userId') || current.id || 0);
-  const currentUser = {
-    id: currentUserId,
-    name: current.name || 'Trip Member',
-    email: current.email || ''
-  };
-
+(function(){
+  // ----------------- elements -----------------
   const $ = s => document.querySelector(s);
-  const who = $('#who'), tripName = $('#tripName'), subtitle = $('#subtitle');
-  const chipsBox = $('#chips'), tbody = $('#tbody');
-  const clearBtn = $('#clearBtn'), submitBtn = $('#submitBtn');
-  const err = $('#err'), ok = $('#ok');
+  const nameLine = $('#nameLine'), tripTitle = $('#tripTitle'), subtitle = $('#subtitle'),
+        monthLbl = $('#monthLbl'), chipsBox = $('#chips'), tbody = $('#tbody'),
+        msg = $('#msg'), clearBtn = $('#clearBtn'), submitBtn = $('#submitBtn');
 
-  const iso = d => d.toISOString().slice(0,10);
-  const addDays = (s, n) => { const dt = new Date(s+'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate()+n); return iso(dt); };
-  const daysInclusive = (a,b) => {
-    const A = new Date(a+'T00:00:00Z'), B = new Date(b+'T00:00:00Z');
-    return Math.floor((B - A)/86400000) + 1;
-  };
-  const fmt = (s) => {
-    const dt = new Date(s+'T00:00:00Z');
-    return dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-  };
+  // ----------------- URL/session -----------------
+  const me = JSON.parse(localStorage.getItem('didou_user') || '{}'); // set by index.html
+  const p = new URLSearchParams(location.search);
+  let tripId = p.get('tripId');
+  let currentUserId = Number(p.get('userId') || me?.id || 0);
 
+  // Ask for tripId if missing
+  function ensureTripId() {
+    if (tripId && /^\d+$/.test(tripId)) return true;
+    const ans = prompt('Enter Trip ID (ask your leader):');
+    if (!ans) return false;
+    if (!/^\d+$/.test(ans)) { alert('Trip ID should be a number.'); return ensureTripId(); }
+    tripId = ans;
+    const q = new URLSearchParams({ tripId, userId: currentUserId || '' }).toString();
+    history.replaceState({}, '', `?${q}`);
+    return true;
+  }
+  if (!ensureTripId()) return;
+
+  // ----------------- UTC-safe helpers -----------------
+  const toUTCDate = (val) => new Date(String(val).slice(0,10)+'T00:00:00Z');
+  const toISO = (d) => d.toISOString().slice(0,10);
+  const addDaysUTC = (iso, n) => { const d=toUTCDate(iso); d.setUTCDate(d.getUTCDate()+n); return toISO(d); };
+  const daysInclusive = (a,b) => Math.floor((toUTCDate(b)-toUTCDate(a))/86400000)+1;
+  const fmt = (val) => toUTCDate(val).toLocaleDateString('en-US',{ month:'short', day:'numeric', year:'numeric' });
+
+  function clearMsg(){ msg.textContent=''; msg.className='msg'; }
+  function showErr(t){ msg.textContent=t; msg.className='msg err'; }
+
+  // ----------------- state -----------------
   let trip=null, days=[], selStart=null, selEnd=null, minDays=1;
 
+  // ----------------- render chips -----------------
   function paint(){
+    if (days.length){
+      monthLbl.textContent = toUTCDate(days[0]).toLocaleDateString('en-US',{ month:'long' });
+    }
     chipsBox.innerHTML='';
     days.forEach(d=>{
-      const el = document.createElement('div');
+      const el=document.createElement('div');
       el.className='chip';
-      el.textContent = new Date(d+'T00:00:00Z').toLocaleDateString('en-US', { month:'short', day:'numeric' });
+      el.textContent = toUTCDate(d).toLocaleDateString('en-US',{ month:'short', day:'numeric' });
       if (selStart && selEnd && d>=selStart && d<=selEnd) el.classList.add('sel');
-      el.addEventListener('click', ()=> onPick(d));
+      el.onclick = ()=> onPick(d);
       chipsBox.appendChild(el);
     });
   }
 
-  function showErr(m){ err.textContent = m; err.classList.add('show'); ok.classList.remove('show'); }
-  function clearMsg(){ err.textContent=''; err.classList.remove('show'); ok.classList.remove('show'); }
+  function clampToWindow(){
+    if (!days.length || !selStart || !selEnd) return;
+    const first = days[0], last = days[days.length-1];
+    if (toUTCDate(selStart) < toUTCDate(first)) selStart = first;
+    if (toUTCDate(selEnd)   > toUTCDate(last))  selEnd  = last;
+  }
 
+  // First click → extend to min; next clicks extend, never shrink under minDays
   function onPick(d){
     clearMsg();
     if (!selStart){
       selStart = d;
-      selEnd = addDays(d, Math.max(0, minDays-1));
-      if (selEnd > days[days.length-1]) selEnd = days[days.length-1];
-      paint(); return;
+      selEnd = addDaysUTC(d, Math.max(0, minDays-1));
+      clampToWindow(); paint(); return;
     }
-    if (d < selStart){ selStart = d; }
-    else { selEnd = d; }
-
-    // clamp inside window
-    if (selStart < days[0]) selStart = days[0];
-    if (selEnd   > days[days.length-1]) selEnd   = days[days.length-1];
-
-    // enforce minimum duration
-    if (daysInclusive(selStart, selEnd) < minDays){
-      selEnd = addDays(selStart, minDays-1);
-      if (selEnd > days[days.length-1]) selEnd = days[days.length-1];
-    }
-    paint();
+    if (toUTCDate(d) < toUTCDate(selStart)) selStart = d; else selEnd = d;
+    if (daysInclusive(selStart, selEnd) < minDays) selEnd = addDaysUTC(selStart, minDays-1);
+    clampToWindow(); paint();
   }
 
-  clearBtn.addEventListener('click', ()=>{ selStart=null; selEnd=null; clearMsg(); paint(); });
+  clearBtn.onclick = ()=>{ selStart=null; selEnd=null; clearMsg(); paint(); };
 
+  // ----------------- data loading -----------------
   async function loadTrip(){
-    const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}`);
-    if (!r.ok) { subtitle.textContent='Trip not found'; return; }
-    trip = await r.json();
+    try{
+      const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}`);
+      if (!r.ok){ subtitle.textContent='Trip not found'; showErr(`Error ${r.status}`); return; }
+      trip = await r.json();
 
-    who.textContent = `${currentUser.name} (Trip Member)`;
-    tripName.textContent = trip.name;
+      nameLine.textContent = `${me?.name || 'Trip Member'} (Trip Member)`;
+      tripTitle.textContent = trip.name || 'TRIP_NAME';
 
-    minDays = Number(trip.duration) || 1;
-    const start = trip.start_date;       // 'YYYY-MM-DD'
-    const end   = trip.end_date;
+      const startISO = String(trip.start_date||'').slice(0,10);
+      const endISO   = String(trip.end_date  ||'').slice(0,10);
+      if (!startISO || !endISO){ subtitle.textContent='Missing trip dates.'; return; }
 
-    subtitle.textContent = `Please input your availability — window ${fmt(start)} → ${fmt(end)}, minimum ${minDays} day(s).`;
+      minDays = Math.max(1, Number(trip.duration)||1);
+      subtitle.textContent = 'Please input your availability';
 
-    // build chips from start..end inclusive
-    days = [];
-    let d = start;
-    while (d <= end){ days.push(d); d = addDays(d,1); }
-    paint();
-    await refreshTable();
+      // Build day list (inclusive)
+      days = [];
+      let cur = toUTCDate(startISO), end = toUTCDate(endISO);
+      while (cur <= end){ days.push(toISO(cur)); cur.setUTCDate(cur.getUTCDate()+1); }
+      paint();
+      await refreshTable();
+    }catch(e){
+      subtitle.textContent = 'Network error';
+      showErr('Network error loading trip.');
+    }
   }
 
   async function refreshTable(){
-    const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}/availability`);
-    const data = await r.json();
-    if (!data.ok) return;
-    tbody.innerHTML = (data.list||[]).map(row=>{
-      const len = daysInclusive(row.avail_start, row.avail_end);
-      return `<tr>
-        <td>${row.name||''}</td>
-        <td>${row.email||''}</td>
-        <td>${fmt(row.avail_start)}</td>
-        <td>${fmt(row.avail_end)}</td>
-        <td>${len}</td>
-      </tr>`;
-    }).join('');
+    try{
+      const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}/availability`);
+      const data = await r.json();
+      if (!data.ok) return;
+      tbody.innerHTML = (data.list||[]).map(row=>{
+        const len = daysInclusive(row.avail_start, row.avail_end);
+        return `<tr>
+          <td>${row.name||''}</td>
+          <td>${row.email||''}</td>
+          <td>${fmt(row.avail_start)}</td>
+          <td>${fmt(row.avail_end)}</td>
+          <td>${len}</td>
+        </tr>`;
+      }).join('');
+    }catch{}
   }
 
-  submitBtn.addEventListener('click', async ()=>{
+  // ----------------- submit -----------------
+  submitBtn.onclick = async ()=>{
     clearMsg();
-    if (!selStart || !selEnd) { return showErr('Please select your availability.'); }
+    if (!selStart || !selEnd){
+      return showErr('Please select your availability.');
+    }
     const len = daysInclusive(selStart, selEnd);
-    if (len < minDays) { return showErr(`Select at least ${minDays} day(s).`); }
+    if (len < minDays){
+      return showErr(`Select at least ${minDays} day(s).`);
+    }
+    if (!currentUserId){
+      return showErr('Missing user. Please sign in again.');
+    }
 
-    const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}/availability`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ user_id: currentUser.id, avail_start: selStart, avail_end: selEnd })
-    });
-    const data = await r.json();
-    if (!data.ok){ return showErr(data.error||'Failed to save'); }
+    try{
+      const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}/availability`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          user_id: currentUserId,
+          avail_start: selStart,
+          avail_end: selEnd
+        })
+      });
+      const data = await r.json();
+      if (!data.ok){ return showErr(data.error || 'Failed to save.'); }
+      msg.textContent='Saved!'; msg.className='msg ok';
+      await refreshTable();
+    }catch{
+      showErr('Network error saving availability.');
+    }
+  };
 
-    ok.classList.add('show');
-    await refreshTable();
-  });
-
-  if (!tripId) { subtitle.textContent='Missing tripId'; return; }
-  loadTrip().catch(()=>{ subtitle.textContent='Network error'; });
+  // ----------------- go -----------------
+  loadTrip();
 })();
 </script>
 </body>

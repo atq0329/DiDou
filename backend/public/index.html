@@ -33,8 +33,6 @@
       <div id="msg" class="msg"></div>
       <button id="signBtn" type="submit" class="primary">Sign in</button>
     </form>
-
-    <p class="forgot"><a href="#" id="forgotLink">Forgot password?</a></p>
   </div>
 
   <!-- Role picker -->
@@ -47,29 +45,6 @@
       <button id="btnLeader" class="primary" style="flex:1">Trip Leader</button>
       <button id="btnMember" class="secondary" style="flex:1">Trip Member</button>
     </div>
-    <div id="roleMsg" class="msg" style="margin-top:12px"></div>
-  </div>
-
-  <!-- Reset password -->
-  <div id="resetCard" class="card hidden">
-    <h2 style="margin-top:0">Reset password</h2>
-    <form id="resetForm" novalidate>
-      <label for="resetName">Full name</label>
-      <input id="resetName" type="text" placeholder="Jane Doe" required>
-
-      <label for="resetEmail">Email</label>
-      <input id="resetEmail" type="email" placeholder="you@example.com" required>
-
-      <label for="newPw">New password</label>
-      <input id="newPw" type="password" placeholder="At least 6 characters" required minlength="6">
-
-      <div id="resetMsg" class="msg"></div>
-
-      <div style="display:flex; gap:10px">
-        <button type="button" id="cancelReset" class="secondary" style="flex:1">Cancel</button>
-        <button type="submit" class="primary" style="flex:1">Update password</button>
-      </div>
-    </form>
   </div>
 
   <script src="app.js" defer></script>

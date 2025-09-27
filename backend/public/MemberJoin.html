@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DiDou — Join a Trip</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <div class="wrap-narrow">
+    <div class="logo-only"><img src="logo.JPG" width="120" height="120" alt=""></div>
+    <div class="card board">
+      <h2 id="who" class="board-title">Trip Member</h2>
+
+      <div class="field-row">
+        <label for="tripInput">Trip Link</label>
+        <input id="tripInput" type="text" placeholder="Paste full link or a numeric trip ID"/>
+      </div>
+
+      <div style="text-align:center;margin-top:12px">
+        <button id="findBtn" class="primary">Find Trip</button>
+      </div>
+
+      <div id="msg" class="msg"></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const me = JSON.parse(localStorage.getItem('didou_user') || '{}');
+  const who = document.getElementById('who');
+  if (me?.name) who.textContent = `${me.name} (Trip Member)`;
+
+  const $ = s => document.querySelector(s);
+  const input = $('#tripInput'), btn = $('#findBtn'), msg = $('#msg');
+
+  function showErr(t){ msg.textContent=t; msg.className='msg err'; }
+  function clearMsg(){ msg.textContent=''; msg.className='msg'; }
+
+  function parseTripId(raw){
+    const s = String(raw||'').trim();
+    if (!s) return null;
+    if (/^\d+$/.test(s)) return s; // plain ID
+    try{
+      const u = new URL(s);
+      const id = u.searchParams.get('tripId');
+      if (id && /^\d+$/.test(id)) return id;
+      const m = u.pathname.match(/(\d+)/); // fallback /trips/123
+      if (m) return m[1];
+    }catch{}
+    return null;
+  }
+
+  btn.addEventListener('click', async ()=>{
+    clearMsg();
+    const id = parseTripId(input.value);
+    if (!id) return showErr('Please paste a valid trip link or numeric ID.');
+    try{
+      const r = await fetch(`/api/trips/${encodeURIComponent(id)}`);
+      if (!r.ok) return showErr('Trip not found. Ask your leader to share the link/ID.');
+      const q = new URLSearchParams({ tripId:id, userId: me.id || '' }).toString();
+      location.href = `MemberAvailability.html?${q}`;
+    }catch{
+      showErr('Network error. Is the API running?');
+    }
+  });
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+})();
+</script>
+</body>
+</html>
