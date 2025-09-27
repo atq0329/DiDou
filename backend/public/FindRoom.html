@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta http-equiv="X-UA-Compatible" content="ie=edge"/>
+  <title>Trip Create / Find</title>
+
+  <style>
+    .drp-panel { display:block; margin-top:8px; }
+    .drp-error { color:#ffdddd; background:#7c0000; padding:6px 8px; border-radius:6px; margin-top:8px; display:none; }
+    .drp-error.show { display:block; }
+    .drp-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .drp-row label { color:white; font-weight:bold; }
+
+    /* Buttons (shared) */
+    .btn {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 0;
+      background: #efc738;
+      cursor: pointer;
+      font-weight: bold;
+
+      /* Make equal width inside a flex row */
+      flex: 1 1 0;
+      text-align: center;
+      box-sizing: border-box;
+    }
+    .btn.secondary {
+      background: #efc738;  /* match primary per your sample */
+      color: #333;
+      border: 1px solid #333;
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+    }
+
+    /* Inputs (match your style) */
+    input[type="text"], input[type="date"], select {
+      padding: 8px 10px;
+      border: 1px solid black;
+      border-radius: 4px;
+      font-size: 14px;
+      outline: none;
+      box-sizing: border-box;
+      width: 100%;
+      max-width: 320px;
+      background:#fff;
+    }
+    input:invalid:not(:focus):not(:placeholder-shown) { border-color:#d00; }
+    .error-msg { display:none; color:#d00; font-size:0.9rem; margin-top:4px; }
+    input:invalid:not(:focus):not(:placeholder-shown) + .error-msg { display:block; }
+
+    /* Select arrow (kept) */
+    .select {
+      -webkit-appearance:none; -moz-appearance:none; appearance:none;
+      background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat:no-repeat; background-position:right 12px center; background-size:16px;
+    }
+    .select:hover { border-color:#666; }
+    .select:focus { outline:none; border-color:#2962ff; box-shadow:0 0 0 3px rgba(41,98,255,.15); }
+    .select:disabled { color:#999; background:#f5f5f5; border-color:#ddd; cursor:not-allowed; }
+
+    /* Cards (same format for both sections) */
+    .bigBox {
+      width: 500px;
+      background-color: #3439a1;
+      border: 1px solid #333;
+      padding: 20px;
+      margin: 30px auto;
+      border-radius: 8px;
+      text-align: left;
+    }
+    .bigBox h2 { color:#efc738; text-align:center; margin-top:0; }
+    .section { margin-top:14px; }
+
+    /* Page bg */
+    body { background-color:#648de5; }
+  </style>
+</head>
+
+<body>
+  <div style="text-align:center;">
+    <img src="logo.png" alt="Logo" width="141" height="200">
+  </div>
+
+  <!-- Box 1: Find Trip (dropdown of user's trips) -->
+  <div class="bigBox" id="findBox">
+    <h2><span id="leaderName"></span> (Trip Leader)</h2>
+
+    <label for="tripSelect" style="color:white; font-weight:bold;">Select Your Trip:</label>
+    <select id="tripSelect" class="select" required>
+      <option value="" disabled selected hidden>Loading your trips…</option>
+    </select>
+    <div class="error-msg" id="findErr">Please select a trip.</div>
+
+    <div class="btn-row" style="margin-top:16px;">
+      <button type="button" id="btnFindTrip" class="btn">Find Trip</button>
+      <button type="button" id="btnShowCreate" class="btn secondary">Create New Trip</button>
+    </div>
+  </div>
+
+  <!-- Box 2: Create New Trip (same format / styling) -->
+  <div class="bigBox" id="createBox" style="display:none;">
+    <h2><span id="leaderName2"></span> (Trip Leader)</h2>
+
+    <div class="section">
+      <label for="tripName" style="color:white; font-weight:bold;">Trip Name</label>
+      <input type="text" id="tripName" placeholder="Enter your trip name" required>
+      <div class="error-msg" id="nameErr">Please enter a trip name.</div>
+    </div>
+
+    <div class="section drp-panel" id="drpPanel">
+      <div class="drp-row">
+        <label>Start date:</label>
+        <input type="date" id="drpStart" required>
+        <label>End date:</label>
+        <input type="date" id="drpEnd" required>
+      </div>
+      <div class="drp-error" id="drpErr"></div>
+    </div>
+
+    <div class="section drp-row">
+      <label for="duration" style="color:white; font-weight:bold;">Duration</label>
+      <select id="duration" class="select" required>
+        <option value="" disabled selected hidden>Select duration…</option>
+        <option value="lt1w">Less than a week</option>
+        <option value="1w">One week</option>
+        <option value="gt1w">More than a week</option>
+        <option value="gt1m">More than a month</option>
+      </select>
+
+      <label for="deadline" style="color:white; font-weight:bold;">Deadline</label>
+      <input type="date" id="deadline">
+    </div>
+
+    <div class="btn-row" style="margin-top:16px;">
+      <button type="button" id="btnCreateTrip" class="btn">Create Trip</button>
+      <button type="button" id="btnShowFind" class="btn secondary">Back to Find Trip</button>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // ---- Auth + show leader name in both boxes
+      const user = JSON.parse(localStorage.getItem('didou_user') || 'null');
+      if (!user) {
+        window.location.href = '/index.html';
+        return;
+      }
+      const leaderName = user.name || '';
+      const ln1 = document.getElementById('leaderName');
+      const ln2 = document.getElementById('leaderName2');
+      if (ln1) ln1.textContent = leaderName;
+      if (ln2) ln2.textContent = leaderName;
+
+      // ---- Create New Trip -> go to Leader page
+const btnShowCreate = document.getElementById('btnShowCreate');
+btnShowCreate?.addEventListener('click', () => {
+  window.location.href = '/AllWishes.html';
+});
+
+
+      // ---- Populate dropdown with trips created by this user
+      const tripSelect = document.getElementById('tripSelect');
+      const btnFindTrip = document.getElementById('btnFindTrip');
+      const findErr = document.getElementById('findErr');
+
+      async function loadMyTrips() {
+        try {
+          // Get all trips (your API lists all); filter client-side by leader_id
+          const resp = await fetch('/api/trips');
+          if (!resp.ok) throw new Error('Failed to fetch trips');
+          const trips = await resp.json();
+
+          const mine = (trips || []).filter(t => String(t.leader_id) === String(user.id));
+
+          // Clear existing options
+          tripSelect.innerHTML = '';
+
+          if (mine.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'You have not created any trips yet';
+            opt.disabled = true; opt.selected = true;
+            tripSelect.appendChild(opt);
+            btnFindTrip.disabled = true;
+            return;
+          }
+
+          // Placeholder
+          const ph = document.createElement('option');
+          ph.value = ''; ph.disabled = true; ph.hidden = true; ph.selected = true;
+          ph.textContent = 'Choose your trip…';
+          tripSelect.appendChild(ph);
+
+          // Add user's trips: show name, value is id
+          mine.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id;              // trip id
+            opt.textContent = t.name;      // trip name
+            tripSelect.appendChild(opt);
+          });
+
+          btnFindTrip.disabled = false;
+        } catch (e) {
+          // API failed
+          tripSelect.innerHTML = '';
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'Error loading trips';
+          opt.disabled = true; opt.selected = true;
+          tripSelect.appendChild(opt);
+          btnFindTrip.disabled = true;
+          console.error(e);
+        }
+      }
+
+      await loadMyTrips();
+
+      // ---- Find Trip flow
+      btnFindTrip.addEventListener('click', () => {
+        const id = tripSelect.value;
+        if (!id) {
+          findErr.style.display = 'block';
+          return;
+        }
+        findErr.style.display = 'none';
+        window.location.href = `/LeaderView.html?tripId=${encodeURIComponent(id)}`;
+      });
+
+      // ---- Create Trip flow
+      const tripName = document.getElementById('tripName');
+      const drpStart = document.getElementById('drpStart');
+      const drpEnd = document.getElementById('drpEnd');
+      const duration = document.getElementById('duration');
+      const deadline = document.getElementById('deadline');
+      const drpErr = document.getElementById('drpErr');
+      const btnCreateTrip = document.getElementById('btnCreateTrip');
+
+      const showErr = (el, msg) => { el.textContent = msg; el.classList.add('show'); };
+      const clearErr = (el) => { el.textContent = ''; el.classList.remove('show'); };
+
+      function todayISO() {
+        const d = new Date();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}-${m}-${day}`;
+      }
+
+      // Prevent past dates + deadline bounds
+      (function initDateMins() {
+        const t = todayISO();
+        drpStart.min = t;
+        drpEnd.min = t;
+        deadline.min = t;
+      })();
+
+      function enforceDeadlineBounds() {
+        const t = todayISO();
+        deadline.min = t;
+        if (drpEnd.value) deadline.max = drpEnd.value; else deadline.removeAttribute('max');
+        if (deadline.value && deadline.value < deadline.min) deadline.value = deadline.min;
+        if (deadline.value && deadline.max && deadline.value > deadline.max) deadline.value = deadline.max;
+      }
+
+      drpStart.addEventListener('change', () => {
+        const t = todayISO();
+        if (drpStart.value && drpStart.value < t) drpStart.value = t;
+        drpEnd.min = drpStart.value || t;
+        if (drpEnd.value && drpEnd.value < drpEnd.min) drpEnd.value = drpEnd.min;
+        drpStart.max = drpEnd.value || '';
+        enforceDeadlineBounds();
+        clearErr(drpErr);
+      });
+
+      drpEnd.addEventListener('change', () => {
+        const t = todayISO();
+        drpStart.max = drpEnd.value || '';
+        if (!drpStart.value && drpEnd.value < t) drpEnd.value = t;
+        drpEnd.min = drpStart.value || t;
+        if (drpEnd.value && drpEnd.value < drpEnd.min) drpEnd.value = drpEnd.min;
+        enforceDeadlineBounds();
+        clearErr(drpErr);
+      });
+
+      btnCreateTrip.addEventListener('click', async () => {
+        const nameVal = (tripName.value || '').trim();
+        const destVal = (document.getElementById('dest')?.value || '').trim(); // (optional if you add it back)
+        if (!nameVal) { alert('Please enter a trip name.'); return; }
+        if (!drpStart.value || !drpEnd.value) { showErr(drpErr, 'Please choose both start and end dates.'); return; }
+        if (drpEnd.value < drpStart.value) { showErr(drpErr, 'End date must be after start date.'); return; }
+        if (!duration.value) { alert('Please choose a duration.'); return; }
+
+        enforceDeadlineBounds();
+
+        const payload = {
+          name: nameVal,
+          destination: destVal || '—',  // safe fallback if destination field isn’t present
+          duration: duration.value,
+          start_date: drpStart.value,
+          end_date: drpEnd.value,
+          deadline: deadline.value || null,
+          leader_id: user.id || null
+        };
+
+        try {
+          btnCreateTrip.disabled = true;
+          const resp = await fetch('/api/trips', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!resp.ok) {
+            const { error } = await resp.json().catch(() => ({ error: 'Unknown error' }));
+            alert('Failed to save trip: ' + (error || resp.statusText));
+            btnCreateTrip.disabled = false;
+            return;
+          }
+          const row = await resp.json();
+
+          // Refresh the dropdown list so the new trip appears immediately
+          await loadMyTrips();
+          // Jump to the leader view of the new trip
+          window.location.href = `/LeaderView.html?tripId=${encodeURIComponent(row.id)}`;
+        } catch (e) {
+          console.error(e);
+          alert('Network error saving trip (is the server running?)');
+          btnCreateTrip.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>

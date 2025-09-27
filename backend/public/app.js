@@ -109,7 +109,7 @@ $('#resetForm').addEventListener('submit', async (e) => {
 /* ---------- Role pick ---------- */
 $('#btnLeader').onclick = () => {
   // take user to Leader page to create a trip
-  window.location.href = '/LeaderPage.html';
+  window.location.href = '/FindRoom.html';
 };
 $('#btnMember').onclick = () => {
   const id = prompt('Enter Trip ID (ask your leader):');
