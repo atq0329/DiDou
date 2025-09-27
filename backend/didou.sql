@@ -1,11 +1,11 @@
 -- =========================================================
--- Merged schema (idempotent)
+-- didou.sql  (idempotent)
 -- =========================================================
 
--- 0) Extensions / helpers FIRST
+-- 0) Extensions / helpers
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 1) ID generator for trips (must exist before table default uses it)
+-- 1) Trip ID generator (8-char A–Z0–9)
 CREATE OR REPLACE FUNCTION gen_trip_id()
 RETURNS text
 LANGUAGE plpgsql
@@ -53,23 +53,43 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 -- 3) Trips (text ID defaulting to gen_trip_id)
+--    Includes 'deadline' and 'member_count' columns.
 CREATE TABLE IF NOT EXISTS trips (
-  id          TEXT PRIMARY KEY DEFAULT gen_trip_id(),
-  name        TEXT NOT NULL,
-  destination TEXT NOT NULL,
-  duration    TEXT NOT NULL,      -- keep TEXT to match current API/UI
-  start_date  DATE,
-  end_date    DATE,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  leader_id   INTEGER REFERENCES users(id) ON DELETE SET NULL
+  id           TEXT PRIMARY KEY DEFAULT gen_trip_id(),
+  name         TEXT NOT NULL,
+  destination  TEXT NOT NULL,
+  duration     TEXT NOT NULL,              -- UI/API keeps this as TEXT
+  start_date   DATE,
+  end_date     DATE,
+  deadline     DATE,
+  member_count INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  leader_id    INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_trips_leader_id ON trips(leader_id);
 
--- 4) Availability (one window per user per trip) — uses TEXT trip_id
+-- Single, final deadline policy (no other deadline constraints elsewhere)
+ALTER TABLE trips
+  DROP CONSTRAINT IF EXISTS trips_deadline_after_start,
+  DROP CONSTRAINT IF EXISTS trips_deadline_before_end,
+  DROP CONSTRAINT IF EXISTS trips_deadline_not_past,
+  DROP CONSTRAINT IF EXISTS trips_deadline_bounds;
+
+ALTER TABLE trips
+  ADD CONSTRAINT trips_deadline_bounds
+  CHECK (
+    deadline IS NULL
+    OR (
+      deadline >= CURRENT_DATE
+      AND (end_date IS NULL OR deadline <= end_date)
+    )
+  );
+
+-- 4) Availability (one window per user per trip)
 CREATE TABLE IF NOT EXISTS availabilities (
   id           SERIAL PRIMARY KEY,
-  trip_id      TEXT    NOT NULL REFERENCES trips(id)  ON DELETE CASCADE,
-  user_id      INTEGER NOT NULL REFERENCES users(id)  ON DELETE CASCADE,
+  trip_id      TEXT    NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   avail_start  DATE    NOT NULL,
   avail_end    DATE    NOT NULL,
   UNIQUE (trip_id, user_id)
@@ -77,7 +97,7 @@ CREATE TABLE IF NOT EXISTS availabilities (
 CREATE INDEX IF NOT EXISTS idx_avail_trip ON availabilities(trip_id);
 CREATE INDEX IF NOT EXISTS idx_avail_user ON availabilities(user_id);
 
--- 5) Join table: users ↔ trips (many-to-many, with live member_count)
+-- 5) Users ↔ Trips (many-to-many) with status/role
 CREATE TABLE IF NOT EXISTS trip_members (
   trip_id    TEXT    NOT NULL REFERENCES trips(id)   ON DELETE CASCADE,
   user_id    INTEGER NOT NULL REFERENCES users(id)   ON DELETE CASCADE,
@@ -88,7 +108,7 @@ CREATE TABLE IF NOT EXISTS trip_members (
   PRIMARY KEY (trip_id, user_id)
 );
 
--- touch updated_at automatically
+-- 5a) Touch updated_at automatically
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -101,16 +121,12 @@ CREATE TRIGGER trip_members_set_updated_at
 BEFORE UPDATE ON trip_members
 FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- helpful indexes
+-- Helpful indexes
 CREATE INDEX IF NOT EXISTS idx_trip_members_trip        ON trip_members (trip_id);
 CREATE INDEX IF NOT EXISTS idx_trip_members_user        ON trip_members (user_id);
 CREATE INDEX IF NOT EXISTS idx_trip_members_trip_status ON trip_members (trip_id, status);
 
--- denormalized live counter on trips
-ALTER TABLE trips
-  ADD COLUMN IF NOT EXISTS member_count INTEGER NOT NULL DEFAULT 0;
-
--- trigger to maintain trips.member_count based on trip_members
+-- 5b) Maintain trips.member_count based on trip_members
 CREATE OR REPLACE FUNCTION trips_member_count_tg() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
@@ -140,7 +156,7 @@ CREATE TRIGGER trip_members_counter_a_iud
 AFTER INSERT OR UPDATE OR DELETE ON trip_members
 FOR EACH ROW EXECUTE FUNCTION trips_member_count_tg();
 
--- source-of-truth compute (optional)
+-- 5c) Source-of-truth count (optional helper)
 CREATE OR REPLACE FUNCTION count_joined_members(p_trip_id TEXT)
 RETURNS INTEGER
 LANGUAGE sql STABLE AS $$
@@ -149,7 +165,7 @@ LANGUAGE sql STABLE AS $$
   WHERE trip_id = p_trip_id AND status = 'joined';
 $$;
 
--- 6) Friend’s tables: activities and user_choices
+-- 6) Activities / user_choices (friend’s tables)
 CREATE TABLE IF NOT EXISTS activities (
   id          SERIAL PRIMARY KEY,
   trip_id     TEXT REFERENCES trips(id) ON DELETE CASCADE,
@@ -181,35 +197,7 @@ CREATE TABLE IF NOT EXISTS user_choices (
 CREATE INDEX IF NOT EXISTS idx_user_choices_user     ON user_choices(username);
 CREATE INDEX IF NOT EXISTS idx_user_choices_activity ON user_choices(activity_id);
 
--- 7) Deadline column + constraints on trips  (must be before the view)
-ALTER TABLE trips
-  ADD COLUMN IF NOT EXISTS deadline DATE;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trips_deadline_not_past') THEN
-    ALTER TABLE trips
-      ADD CONSTRAINT trips_deadline_not_past
-      CHECK (deadline IS NULL OR deadline >= CURRENT_DATE);
-  END IF;
-END$$;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trips_deadline_after_start') THEN
-    ALTER TABLE trips
-      ADD CONSTRAINT trips_deadline_after_start
-      CHECK (deadline IS NULL OR start_date IS NULL OR deadline >= start_date);
-  END IF;
-
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'trips_deadline_before_end') THEN
-    ALTER TABLE trips
-      ADD CONSTRAINT trips_deadline_before_end
-      CHECK (deadline IS NULL OR end_date IS NULL OR deadline <= end_date);
-  END IF;
-END$$;
-
--- 8) View with computed counts (create AFTER all trip columns exist)
+-- 7) View with computed counts
 DROP VIEW IF EXISTS trips_with_counts;
 
 CREATE VIEW trips_with_counts AS

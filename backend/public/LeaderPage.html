@@ -12,7 +12,6 @@
             display: block;
         }
 
-
         .drp-error {
             color: #ffdddd;
             background: #7c0000;
@@ -61,34 +60,25 @@
             width: 20px;
             height: 20px;
             background-color: blue;
-            /* Optional: Fill the circle with a color */
             border-radius: 50%;
-            /* This is the key to making it a circle */
             border: 2px solid blue;
-            /* Optional: Add a border */
         }
 
         .otherCircle {
             width: 20px;
             height: 20px;
             background-color: rgb(113, 114, 125);
-            /* Optional: Fill the circle with a color */
             border-radius: 50%;
-            /* This is the key to making it a circle */
             border: 2px solid rgb(113, 114, 125);
-            /* Optional: Add a border */
         }
 
         .divider {
             display: inline-block;
             width: 12px;
-            /* length of the line */
             height: 2px;
-            /* thickness */
             background-color: rgb(113, 114, 125);
             vertical-align: middle;
             margin: 0 8px;
-            /* spacing around the line */
         }
 
         /* Input base style */
@@ -100,12 +90,10 @@
             outline: none;
         }
 
-        /* Show red border after the user leaves the field and it's still empty */
         input:invalid:not(:focus):not(:placeholder-shown) {
             border-color: #d00;
         }
 
-        /* Optional inline error text */
         .error-msg {
             display: none;
             color: #d00;
@@ -119,32 +107,22 @@
 
         .bigBox {
             width: 500px;
-            /* Set the width of the box */
             height: 300px;
-            /* Set the height of the box */
             background-color: #3439a1;
-            /* Set a background color */
             border: 1px solid #333;
-            /* Add a border */
             padding: 20px;
-            /* Add padding inside the box */
             margin: 30px auto;
-            /* Center the box horizontally and add margin */
             border-radius: 8px;
-            /* Round the corners */
             text-align: left;
-            /* Center the text inside the box */
         }
 
         .bigBox h2 {
             color: #efc738;
-            /* Style the heading inside the box */
             text-align: center;
         }
 
         .bigBox p {
             font-family: sans-serif;
-            /* Style the paragraph inside the box */
         }
 
         /* Base select styling */
@@ -152,18 +130,15 @@
             width: 100%;
             max-width: 320px;
             padding: 10px 40px 10px 12px;
-            /* extra right padding for the arrow */
             font-size: 14px;
             border: 1.5px solid #999;
             border-radius: 8px;
             background-color: #fff;
 
-            /* remove native arrows */
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
 
-            /* custom arrow (SVG as background image) */
             background-image:
                 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
             background-repeat: no-repeat;
@@ -171,7 +146,6 @@
             background-size: 16px;
         }
 
-        /* Hover / focus states */
         .select:hover {
             border-color: #666;
         }
@@ -182,7 +156,6 @@
             box-shadow: 0 0 0 3px rgba(41, 98, 255, 0.15);
         }
 
-        /* Disabled look */
         .select:disabled {
             color: #999;
             background-color: #f5f5f5;
@@ -190,17 +163,13 @@
             cursor: not-allowed;
         }
 
-        /* Optional: invalid (empty) look using the placeholder option */
         .select:invalid {
             color: #777;
-            /* placeholder grey */
         }
 
         .select--sm {
             max-width: 160px;
-            /* shorter */
             padding: 8px 32px 8px 10px;
-            /* a bit tighter */
             font-size: 13px;
         }
     </style>
@@ -209,6 +178,7 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title> Trip Create </title>
 </head>
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         // Elements
@@ -217,7 +187,7 @@
         const duration = document.getElementById('duration');
         const start = document.getElementById('drpStart');
         const end = document.getElementById('drpEnd');
-        const deadline = document.getElementById('deadline');   // ← add this
+        const deadline = document.getElementById('deadline');
         const createBtn = document.getElementById('creatTrip');
         const errBox = document.getElementById('drpErr');
 
@@ -259,9 +229,6 @@
             enforceDeadlineBounds();
         }
 
-        start.addEventListener('change', () => { end.min = start.value || ''; syncDurationFromDates(); });
-        end.addEventListener('change', () => { start.max = end.value || ''; syncDurationFromDates(); });
-
         // ===== Deadline rules =====
         function todayISO() {
             const d = new Date();
@@ -271,32 +238,78 @@
         }
 
         function enforceDeadlineBounds() {
-            if (!deadline) return;
-            const today = todayISO();
-            // min: today or start (whichever is later)
-            const minMs = Math.max(
-                Date.parse(today),
-                start.value ? Date.parse(start.value) : -Infinity
-            );
-            deadline.min = new Date(minMs).toISOString().slice(0, 10);
+  if (!deadline) return;
+  const today = todayISO();
 
-            // max: end (if provided)
-            if (end.value) {
-                deadline.max = end.value;
-            } else {
-                deadline.removeAttribute('max');
-            }
+  // Deadline can be any date from *today* onward...
+  deadline.min = today;
 
-            // nudge value into range if needed
-            if (deadline.value && deadline.value < deadline.min) deadline.value = deadline.min;
-            if (deadline.value && deadline.max && deadline.value > deadline.max) deadline.value = deadline.max;
-        }
+  // ...but still cap it at End date if one is chosen.
+  if (end.value) {
+    deadline.max = end.value;
+  } else {
+    deadline.removeAttribute('max');
+  }
 
-        // init deadline once
+  // Clamp current value into the new range
+  if (deadline.value && deadline.value < deadline.min) deadline.value = deadline.min;
+  if (deadline.value && deadline.max && deadline.value > deadline.max) deadline.value = deadline.max;
+}
+
+
+        // --- Prevent past dates & set initial mins ---
+        (function initDateMins() {
+            const t = todayISO();
+
+            // Start date: cannot be in the past
+            start.min = t;
+            if (start.value && start.value < t) start.value = t;
+
+            // End date: cannot be before start; if no start yet, at least today
+            end.min = start.value || t;
+            if (end.value && end.value < end.min) end.value = end.min;
+
+            // Deadline: from today (and enforceDeadlineBounds will raise it to start if needed)
+            if (deadline) deadline.min = t;
+        })();
+
+        // listeners to keep constraints in sync
+        start.addEventListener('change', () => {
+            const t = todayISO();
+
+            // clamp start to today
+            if (start.value && start.value < t) start.value = t;
+
+            // end cannot be before start; if start cleared, end can't be before today
+            end.min = start.value || t;
+            if (end.value && end.value < end.min) end.value = end.min;
+
+            // keep an optional max on start tied to end
+            start.max = end.value || '';
+
+            enforceDeadlineBounds();
+            syncDurationFromDates();
+        });
+
+        end.addEventListener('change', () => {
+            const t = todayISO();
+
+            // keep start <= end
+            start.max = end.value || '';
+
+            // ensure end respects at least today if start is empty
+            if (!start.value && end.value < t) end.value = t;
+
+            // ensure min for end stays coherent
+            end.min = start.value || t;
+            if (end.value && end.value < end.min) end.value = end.min;
+
+            enforceDeadlineBounds();
+            syncDurationFromDates();
+        });
+
+        // init deadline once (after mins are set)
         enforceDeadlineBounds();
-        // re-enforce on any change
-        start.addEventListener('change', enforceDeadlineBounds);
-        end.addEventListener('change', enforceDeadlineBounds);
 
         // ===== Submit/Create =====
         createBtn.addEventListener('click', async () => {
@@ -305,7 +318,8 @@
             if (!start.value || !end.value) { showErr('Please choose both start and end dates.'); return; }
             if (end.value < start.value) { showErr('End date must be after start date.'); return; }
             if (!duration.value) { showErr('Please choose a duration.'); return; }
-            // optional: ensure deadline is in range
+
+            // final bounds enforcement before submit
             enforceDeadlineBounds();
 
             const payload = {
@@ -339,13 +353,10 @@
             }
         });
 
-        // Optional: prefill
+        // Optional: prefill duration if dates exist on load
         syncDurationFromDates();
     });
 </script>
-
-
-
 
 <body style="background-color: #648de5;">
     <div style="text-align:center;">
@@ -356,8 +367,12 @@
         <label for="tripName" style="color: white;font-weight:bold;">Trip Name</label>
         <input type="text" id="tripName" name="tripName" placeholder="Enter your trip name" required>
         <div class="error-msg">Please enter a trip name.</div>
-        <br> <br> <label for="dest" style="color: white;font-weight:bold;">Destination City</label>
+
+        <br><br>
+
+        <label for="dest" style="color: white;font-weight:bold;">Destination City</label>
         <input type="text" id="dest" name="dest" placeholder="Enter your destination city" required>
+
         <div class="drp-panel" id="drpPanel">
             <div class="drp-row">
                 <label style="color: white;font-weight:bold;">Start date:</label>
@@ -367,7 +382,7 @@
             </div>
             <div class="drp-error" id="drpErr"></div>
         </div>
-        <!-- Replace your current Duration block with this block -->
+
         <div class="drp-row" style="margin-top:8px;">
             <label for="duration" style="color:white;font-weight:bold;">Duration</label>
             <select id="duration" name="duration" class="select select--sm" required>
