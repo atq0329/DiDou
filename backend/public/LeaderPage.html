@@ -238,23 +238,23 @@
         }
 
         function enforceDeadlineBounds() {
-  if (!deadline) return;
-  const today = todayISO();
+            if (!deadline) return;
+            const today = todayISO();
 
-  // Deadline can be any date from *today* onward...
-  deadline.min = today;
+            // Deadline can be any date from *today* onward...
+            deadline.min = today;
 
-  // ...but still cap it at End date if one is chosen.
-  if (end.value) {
-    deadline.max = end.value;
-  } else {
-    deadline.removeAttribute('max');
-  }
+            // ...but still cap it at End date if one is chosen.
+            if (end.value) {
+                deadline.max = end.value;
+            } else {
+                deadline.removeAttribute('max');
+            }
 
-  // Clamp current value into the new range
-  if (deadline.value && deadline.value < deadline.min) deadline.value = deadline.min;
-  if (deadline.value && deadline.max && deadline.value > deadline.max) deadline.value = deadline.max;
-}
+            // Clamp current value into the new range
+            if (deadline.value && deadline.value < deadline.min) deadline.value = deadline.min;
+            if (deadline.value && deadline.max && deadline.value > deadline.max) deadline.value = deadline.max;
+        }
 
 
         // --- Prevent past dates & set initial mins ---

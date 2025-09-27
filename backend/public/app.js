@@ -31,7 +31,7 @@ $('#signForm').addEventListener('submit', async (e) => {
 
   if (!name || !email || password.length < 6) {
     msg.textContent = 'Please fill all fields (password ≥ 6).';
-    msg.classList.add('err'); 
+    msg.classList.add('err');
     return;
   }
 
@@ -84,23 +84,23 @@ $('#cancelReset').onclick = () => show(authCard);
 
 $('#resetForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const msg = $('#resetMsg'); msg.className='msg'; msg.textContent='';
+  const msg = $('#resetMsg'); msg.className = 'msg'; msg.textContent = '';
   const name = $('#resetName').value.trim();
   const email = $('#resetEmail').value.trim();
   const newPassword = $('#newPw').value;
-  if (!name || !email || newPassword.length < 6){
+  if (!name || !email || newPassword.length < 6) {
     msg.textContent = 'Please provide name, email, and a 6+ char password.';
     msg.classList.add('err'); return;
   }
   try {
     const r = await fetch('/api/reset', {
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, newPassword })
     });
     const data = await r.json();
-    if (!data.ok){ msg.textContent = data.error || 'Reset failed.'; msg.classList.add('err'); return; }
+    if (!data.ok) { msg.textContent = data.error || 'Reset failed.'; msg.classList.add('err'); return; }
     msg.textContent = 'Password updated. Please sign in.'; msg.classList.add('ok');
-    setTimeout(()=> show(authCard), 900);
+    setTimeout(() => show(authCard), 900);
   } catch {
     msg.textContent = 'Network error.'; msg.classList.add('err');
   }
@@ -114,6 +114,6 @@ $('#btnLeader').onclick = () => {
 $('#btnMember').onclick = () => {
   const id = prompt('Enter Trip ID (ask your leader):');
   if (!id) return;
-  const user = JSON.parse(localStorage.getItem('didou_user')||'{}');
-  window.location.href = `/MemberAvailability.html?tripId=${encodeURIComponent(id)}&userId=${encodeURIComponent(user.id||'')}`;
+  const user = JSON.parse(localStorage.getItem('didou_user') || '{}');
+  window.location.href = `/MemberAvailability.html?tripId=${encodeURIComponent(id)}&userId=${encodeURIComponent(user.id || '')}`;
 };

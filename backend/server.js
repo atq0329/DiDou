@@ -145,11 +145,11 @@ app.get('/api/trips/:id', async (req, res) => {
        WHERE t.id = $1`,
       [id]
     );
-    if (!rows.length) return res.status(404).json({ ok:false, error: 'Not found' });
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Not found' });
     res.json(rows[0]);
   } catch (e) {
     console.error('get trip error:', e);
-    res.status(500).json({ ok:false, error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
@@ -170,7 +170,7 @@ app.get('/api/trips/:id/availability', async (req, res) => {
     res.json({ ok: true, list: rows });
   } catch (e) {
     console.error('get availability error:', e);
-    res.status(500).json({ ok:false, error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
@@ -180,7 +180,7 @@ app.post('/api/trips/:id/availability', async (req, res) => {
     const { id } = req.params;
     let { user_id, avail_start, avail_end, name, email } = req.body || {};
     if (!user_id || !avail_start || !avail_end) {
-      return res.status(400).json({ ok:false, error: 'Missing fields: user_id, avail_start, avail_end' });
+      return res.status(400).json({ ok: false, error: 'Missing fields: user_id, avail_start, avail_end' });
     }
     user_id = Number(user_id);
 
@@ -199,7 +199,7 @@ app.post('/api/trips/:id/availability', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     console.error('post availability error:', e);
-    res.status(500).json({ ok:false, error: e.message });
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
