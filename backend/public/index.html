@@ -1,9 +1,9 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>DiDou — Sign in</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DiDou — Sign In</title>
   <link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
@@ -31,11 +31,13 @@
       </div>
 
       <div id="msg" class="msg"></div>
-      <button id="signBtn" type="submit" class="primary">Sign in</button>
+      <button id="signBtn" type="submit" class="primary">Sign In</button>
     </form>
+
+    <p class="forgot"><a href="#" id="forgotLink">Forgot password?</a></p>
   </div>
 
-  <!-- Role picker -->
+  <!-- Role Selection -->
   <div id="roleCard" class="card hidden" style="text-align:center">
     <img src="logo.JPG" alt="logo" class="logo" style="margin-bottom:6px"/>
     <h2 style="margin:4px 0 0">Hello <span id="helloName"></span>,</h2>
@@ -45,8 +47,135 @@
       <button id="btnLeader" class="primary" style="flex:1">Trip Leader</button>
       <button id="btnMember" class="secondary" style="flex:1">Trip Member</button>
     </div>
+    <div id="roleMsg" class="msg" style="margin-top:12px"></div>
   </div>
 
-  <script src="app.js" defer></script>
+  <!-- Reset Password -->
+  <div id="resetCard" class="card hidden">
+    <h2 style="margin-top:0">Reset Password</h2>
+    <form id="resetForm" novalidate>
+      <label for="resetName">Full name</label>
+      <input id="resetName" type="text" placeholder="Jane Doe" required>
+
+      <label for="resetEmail">Email</label>
+      <input id="resetEmail" type="email" placeholder="you@example.com" required>
+
+      <label for="newPw">New password</label>
+      <input id="newPw" type="password" placeholder="At least 6 characters" required minlength="6">
+
+      <div id="resetMsg" class="msg"></div>
+
+      <div style="display:flex; gap:10px">
+        <button type="button" id="cancelReset" class="secondary" style="flex:1">Cancel</button>
+        <button type="submit" class="primary" style="flex:1">Update Password</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // fresh start each time
+    localStorage.removeItem('didou_user');
+
+    const $ = s => document.querySelector(s);
+    const authCard = $('#authCard');
+    const roleCard = $('#roleCard');
+    const resetCard = $('#resetCard');
+
+    function show(card) {
+      [authCard, roleCard, resetCard].forEach(el => el.classList.add('hidden'));
+      card.classList.remove('hidden');
+    }
+
+    // Toggle password visibility
+    $('#togglePw').onclick = () => {
+      const pw = $('#password');
+      pw.type = pw.type === 'password' ? 'text' : 'password';
+      $('#togglePw').textContent = pw.type === 'password' ? 'Show' : 'Hide';
+    };
+
+    // Sign in
+    $('#signForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = $('#msg');
+      msg.className = 'msg';
+      msg.textContent = '';
+
+      const name = $('#name').value.trim();
+      const email = $('#email').value.trim();
+      const password = $('#password').value;
+
+      if (!name || !email || password.length < 6) {
+        msg.textContent = 'Please fill all fields (password ≥ 6 characters).';
+        msg.classList.add('err');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/signin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Sign-in failed');
+
+        localStorage.setItem('didou_user', JSON.stringify(data.user));
+        $('#helloName').textContent = data.user.name || '';
+        show(roleCard);
+      } catch (err) {
+        msg.textContent = err.message || 'Network error. Please try again.';
+        msg.classList.add('err');
+      }
+    });
+
+    // Forgot / Reset
+    $('#forgotLink').onclick = (e) => {
+      e.preventDefault();
+      $('#resetName').value = $('#name').value;
+      $('#resetEmail').value = $('#email').value;
+      $('#resetMsg').textContent = '';
+      show(resetCard);
+    };
+
+    $('#cancelReset').onclick = () => show(authCard);
+
+    $('#resetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = $('#resetMsg');
+      msg.className = 'msg';
+      msg.textContent = '';
+
+      const name = $('#resetName').value.trim();
+      const email = $('#resetEmail').value.trim();
+      const newPassword = $('#newPw').value;
+
+      if (!name || !email || newPassword.length < 6) {
+        msg.textContent = 'Please provide all fields with password 6+ characters.';
+        msg.classList.add('err');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, newPassword })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Reset failed');
+
+        msg.textContent = 'Password updated! Please sign in.';
+        msg.classList.add('ok');
+        setTimeout(() => show(authCard), 1500);
+      } catch (err) {
+        msg.textContent = err.message || 'Network error.';
+        msg.classList.add('err');
+      }
+    });
+
+    // Role selection
+    $('#btnLeader').onclick = () => { window.location.href = '/LeaderPage.html'; };
+    $('#btnMember').onclick = () => { window.location.href = '/MemberJoin.html'; };
+  </script>
 </body>
 </html>

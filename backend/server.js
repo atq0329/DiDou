@@ -1,278 +1,259 @@
 // server.js
-const path = require('path');
-const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
-const crypto = require('crypto');
-const { Pool, types } = require('pg');
-
-// Force DATE (OID 1082) to come back as 'YYYY-MM-DD' string
-types.setTypeParser(1082, s => s);
+const path = require('path');
+const fs = require('fs');
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-// --- DB ---
+// ---- DB pool ----
 const pool = new Pool({
   connectionString:
-    process.env.DATABASE_URL ||
-    'postgresql://didou:didoupass@localhost:5432/didou',
+    process.env.DATABASE_URL || 'postgresql://didou:didoupass@localhost:5432/didou',
 });
 
-// Ensure schema on boot
+// ---- Ensure schema ----
 async function ensureSchema() {
-  const sql = fs.readFileSync(path.join(__dirname, 'didou.sql'), 'utf8');
-  await pool.query(sql);
+  const sqlPath = path.join(__dirname, 'didou.sql');
+  if (fs.existsSync(sqlPath)) {
+    const schema = fs.readFileSync(sqlPath, 'utf8');
+    await pool.query(schema);
+  }
+  // Ensure availability table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS trip_availability (
+      trip_id    TEXT    NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      avail_start DATE   NOT NULL,
+      avail_end   DATE   NOT NULL,
+      PRIMARY KEY (trip_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trip_avail_trip ON trip_availability(trip_id);
+  `);
   console.log('Schema ensured.');
 }
 
-// --- helpers ---
-const normName = s =>
-  (s || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
-
-function hash(password, salt) {
-  const s = salt || crypto.randomBytes(16).toString('hex');
-  const h = crypto.createHash('sha256').update(s + password).digest('hex');
-  return { hash: h, salt: s };
-}
-
-async function getUserByEmail(email) {
-  const { rows } = await pool.query(
-    `SELECT * FROM users WHERE email = $1`,
-    [String(email).toLowerCase().trim()]
-  );
-  return rows[0] || null;
-}
-
-async function nameTaken(name) {
-  const { rows } = await pool.query(
-    `SELECT 1 FROM users WHERE lower(btrim(name)) = lower(btrim($1))`,
-    [name]
-  );
-  return !!rows.length;
-}
-
-const ymd = s => String(s).slice(0, 10); // 'YYYY-MM-DD'
-
-// --- middleware & static ---
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Root -> sign-in page
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// ---------- AUTH ----------
-/**
- * POST /api/signin
- * body: { name, email, password }
- * If email exists => verify (name & password).
- * Else create (name must be unique site-wide).
- */
+// ---------------- AUTH ----------------
 app.post('/api/signin', async (req, res) => {
   try {
     const { name, email, password } = req.body || {};
-    if (!name || !email || !password) {
-      return res.status(400).json({ ok: false, error: 'Missing fields.' });
-    }
-    const emailNorm = String(email).toLowerCase().trim();
-    const user = await getUserByEmail(emailNorm);
-
-    if (user) {
-      const { hash: h } = hash(password, user.password_salt);
-      const okName = normName(user.name) === normName(name);
-      const okPw = !!user.password_hash && h === user.password_hash;
-      if (!okName || !okPw) {
-        return res
-          .status(401)
-          .json({ ok: false, error: 'Invalid email, name, or password.' });
-      }
-      return res.json({
-        ok: true,
-        user: { id: user.id, name: user.name, email: user.email },
-      });
+    if (!name || !email || !password || password.length < 6) {
+      return res.status(400).json({ ok: false, error: 'Please provide name, email, and a 6+ char password.' });
     }
 
-    if (password.length < 6) {
-      return res
-        .status(400)
-        .json({ ok: false, error: 'Password must be at least 6 characters.' });
-    }
-    if (await nameTaken(name)) {
-      return res
-        .status(409)
-        .json({ ok: false, error: 'That name is already in use. Choose another.' });
+    const u = await pool.query(
+      'SELECT id, name, email, password_hash FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (u.rows.length) {
+      const user = u.rows[0];
+      const okPw = await bcrypt.compare(password, user.password_hash);
+      if (!okPw) return res.status(401).json({ ok: false, error: 'Invalid email or password.' });
+      return res.json({ ok: true, user: { id: user.id, name: user.name, email: user.email } });
     }
 
-    const { hash: h, salt } = hash(password);
+    // create new user
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(password, salt);
     const ins = await pool.query(
       `INSERT INTO users (name, email, password_hash, password_salt)
        VALUES ($1,$2,$3,$4)
        RETURNING id, name, email`,
-      [name, emailNorm, h, salt]
+      [name, email, hash, salt]
     );
     return res.json({ ok: true, user: ins.rows[0] });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    console.error('signin error:', e);
+    return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-/**
- * POST /api/reset
- * body: { name, email, newPassword }
- */
 app.post('/api/reset', async (req, res) => {
   try {
     const { name, email, newPassword } = req.body || {};
-    if (!name || !email || !newPassword) {
-      return res.status(400).json({ ok: false, error: 'Missing fields.' });
+    if (!name || !email || !newPassword || newPassword.length < 6) {
+      return res.status(400).json({ ok: false, error: 'Please provide name, email, and a 6+ char new password.' });
     }
-    if (newPassword.length < 6) {
-      return res
-        .status(400)
-        .json({ ok: false, error: 'Password must be at least 6 characters.' });
+
+    const u = await pool.query('SELECT id, name FROM users WHERE email = $1', [email]);
+    if (!u.rows.length) return res.status(404).json({ ok: false, error: 'User not found.' });
+    if (u.rows[0].name !== name) {
+      return res.status(400).json({ ok: false, error: 'Name/email do not match.' });
     }
-    const user = await getUserByEmail(email);
-    if (!user) return res.status(404).json({ ok: false, error: 'No account for this email.' });
-    if (normName(user.name) !== normName(name)) {
-      return res.status(401).json({ ok: false, error: 'Name does not match this email.' });
-    }
-    const { hash: h, salt } = hash(newPassword);
+
+    const salt = await bcrypt.genSalt(10);
+    const hash = await bcrypt.hash(newPassword, salt);
     await pool.query(
-      `UPDATE users SET password_hash=$1, password_salt=$2 WHERE id=$3`,
-      [h, salt, user.id]
+      'UPDATE users SET password_hash = $1, password_salt = $2 WHERE email = $3',
+      [hash, salt, email]
     );
-    res.json({ ok: true, message: 'Password updated.' });
+    return res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    console.error('reset error:', e);
+    return res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ---------- TRIPS ----------
-/** Create trip */
+// ---------------- TRIPS ----------------
 app.post('/api/trips', async (req, res) => {
   try {
-    const { name, destination, duration, start_date, end_date, leader_id } = req.body || {};
-    if (!name || !destination || !duration || !start_date || !end_date) {
-      return res.status(400).json({ error: 'name, destination, duration, start_date, end_date are required' });
-    }
+    const { name, destination, duration, start_date, end_date, leader_id, deadline } = req.body || {};
     const { rows } = await pool.query(
-      `INSERT INTO trips (name, destination, duration, start_date, end_date, leader_id)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       RETURNING id, name, destination, duration,
-                 to_char(start_date,'YYYY-MM-DD') AS start_date,
-                 to_char(end_date,'YYYY-MM-DD')   AS end_date,
-                 leader_id`,
-      [name, destination, Number(duration), ymd(start_date), ymd(end_date), leader_id || null]
+      `INSERT INTO trips (name, destination, duration, start_date, end_date, leader_id, deadline)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       RETURNING *`,
+      [name, destination, duration, start_date || null, end_date || null, leader_id || null, deadline || null]
     );
     res.status(201).json(rows[0]);
   } catch (e) {
+    console.error('create trip error:', e);
     res.status(500).json({ error: e.message });
   }
 });
 
-/** Get one trip */
+app.get('/api/trips', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM trips ORDER BY id DESC');
+    res.json(rows);
+  } catch (e) {
+    console.error('list trips error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/trips/:id', async (req, res) => {
   try {
+    const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT
-         t.id, t.name, t.destination, t.duration,
-         to_char(t.start_date,'YYYY-MM-DD') AS start_date,
-         to_char(t.end_date,'YYYY-MM-DD')   AS end_date,
-         u.name AS leader_name
+      `SELECT t.*,
+              COALESCE((SELECT COUNT(DISTINCT a.user_id)
+                        FROM trip_availability a
+                        WHERE a.trip_id = t.id), 0) AS member_count
        FROM trips t
-       LEFT JOIN users u ON u.id = t.leader_id
        WHERE t.id = $1`,
-      [req.params.id]
+      [id]
     );
-    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    if (!rows.length) return res.status(404).json({ ok: false, error: 'Not found' });
     res.json(rows[0]);
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error('get trip error:', e);
+    res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// ---------- AVAILABILITY ----------
-/** List all availability for a trip */
+// ---------------- AVAILABILITY ----------------
 app.get('/api/trips/:id/availability', async (req, res) => {
   try {
+    const { id } = req.params;
     const { rows } = await pool.query(
-      `SELECT
-         a.id,
-         to_char(a.avail_start,'YYYY-MM-DD') AS avail_start,
-         to_char(a.avail_end,'YYYY-MM-DD')   AS avail_end,
-         u.id AS user_id, u.name, u.email
-       FROM availabilities a
-       JOIN users u ON u.id = a.user_id
-       WHERE a.trip_id = $1
-       ORDER BY a.avail_start, u.name`,
-      [req.params.id]
+      `SELECT a.user_id, u.name, u.email, a.avail_start, a.avail_end
+         FROM trip_availability a
+         LEFT JOIN users u ON u.id = a.user_id
+        WHERE a.trip_id = $1
+        ORDER BY a.avail_start`,
+      [id]
     );
     res.json({ ok: true, list: rows });
   } catch (e) {
+    console.error('get availability error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-/** Upsert availability */
 app.post('/api/trips/:id/availability', async (req, res) => {
   try {
-    const tripId = Number(req.params.id);
-    const { user_id, avail_start, avail_end } = req.body || {};
-    if (!tripId || !user_id || !avail_start || !avail_end) {
-      return res.status(400).json({ ok: false, error: 'Missing fields.' });
+    const { id } = req.params;
+    let { user_id, avail_start, avail_end } = req.body || {};
+    if (!user_id || !avail_start || !avail_end) {
+      return res.status(400).json({ ok: false, error: 'Missing fields: user_id, avail_start, avail_end' });
     }
-
-    // read trip window
-    const t = await pool.query(
-      `SELECT duration,
-              to_char(start_date,'YYYY-MM-DD') AS start_date,
-              to_char(end_date,'YYYY-MM-DD')   AS end_date
-       FROM trips WHERE id=$1`,
-      [tripId]
-    );
-    if (!t.rows.length) return res.status(404).json({ ok: false, error: 'Trip not found.' });
-    const trip = t.rows[0];
-
-    // validate inside window
-    const inside =
-      trip.start_date <= avail_start &&
-      avail_start <= trip.end_date   &&
-      trip.start_date <= avail_end   &&
-      avail_end   <= trip.end_date   &&
-      avail_start <= avail_end;
-    if (!inside) {
-      return res.status(400).json({ ok: false, error: 'Pick dates within the trip window; end ≥ start.' });
-    }
-
-    // min length
-    const days = (a,b)=> Math.floor((new Date(b)-new Date(a))/86400000)+1;
-    const len = days(avail_start, avail_end);
-    if (len < Number(trip.duration)) {
-      return res.status(400).json({ ok: false, error: `Select at least ${trip.duration} days.` });
-    }
+    user_id = Number(user_id);
 
     await pool.query(
-      `INSERT INTO availabilities (trip_id, user_id, avail_start, avail_end)
+      `INSERT INTO trip_availability (trip_id, user_id, avail_start, avail_end)
        VALUES ($1,$2,$3,$4)
        ON CONFLICT (trip_id, user_id)
-       DO UPDATE SET avail_start = EXCLUDED.avail_start, avail_end = EXCLUDED.avail_end`,
-      [tripId, user_id, ymd(avail_start), ymd(avail_end)]
+       DO UPDATE SET avail_start = EXCLUDED.avail_start,
+                     avail_end   = EXCLUDED.avail_end`,
+      [id, user_id, avail_start, avail_end]
+    );
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('post availability error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ---------------- ACTIVITIES (Wishlist) ----------------
+app.get('/api/trips/:id/activities', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const q = await pool.query(
+      `SELECT id, trip_id, name, category, time_period, address
+         FROM activities
+        WHERE trip_id = $1
+        ORDER BY time_period NULLS LAST, name`,
+      [id]
+    );
+    res.json({ ok: true, list: q.rows });
+  } catch (e) {
+    console.error('get activities error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.post('/api/trips/:id/activities', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let { name, category, time_period, address } = req.body || {};
+    name = (name || '').trim();
+    if (!name || !time_period) {
+      return res.status(400).json({ ok: false, error: 'name and time_period required' });
+    }
+    const ins = await pool.query(
+      `INSERT INTO activities (trip_id, name, category, time_period, address)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING id, trip_id, name, category, time_period, address`,
+      [id, name, category || null, time_period, address || null]
+    );
+    res.status(201).json({ ok: true, item: ins.rows[0] });
+  } catch (e) {
+    console.error('post activity error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+app.delete('/api/trips/:id/activities/:activityId', async (req, res) => {
+  try {
+    const { id, activityId } = req.params;
+    await pool.query(
+      `DELETE FROM activities WHERE id = $1 AND trip_id = $2`,
+      [activityId, id]
     );
     res.json({ ok: true });
   } catch (e) {
+    console.error('delete activity error:', e);
     res.status(500).json({ ok: false, error: e.message });
   }
 });
 
-// --- boot ---
-ensureSchema().then(() => {
-  app.listen(PORT, () => {
-    console.log(`API running at http://localhost:${PORT}`);
+// ---------------- BOOT ----------------
+ensureSchema()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`API running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to ensure schema:', err.message);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('Failed to ensure schema:', err.message);
-  process.exit(1);
-});

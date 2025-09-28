@@ -1,0 +1,67 @@
+2025-09-27 13:37:16.590 ACST [95267] LOG:  starting PostgreSQL 14.19 (Homebrew) on aarch64-apple-darwin22.6.0, compiled by Apple clang version 15.0.0 (clang-1500.1.0.2.5), 64-bit
+2025-09-27 13:37:16.592 ACST [95267] LOG:  could not bind IPv6 address "::1": Address already in use
+2025-09-27 13:37:16.592 ACST [95267] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2025-09-27 13:37:16.592 ACST [95267] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2025-09-27 13:37:16.592 ACST [95267] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2025-09-27 13:37:16.592 ACST [95267] WARNING:  could not create listen socket for "localhost"
+2025-09-27 13:37:16.592 ACST [95267] FATAL:  could not create any TCP/IP sockets
+2025-09-27 13:37:16.592 ACST [95267] LOG:  database system is shut down
+2025-09-27 13:42:04.345 ACST [95728] LOG:  starting PostgreSQL 14.19 (Homebrew) on aarch64-apple-darwin22.6.0, compiled by Apple clang version 15.0.0 (clang-1500.1.0.2.5), 64-bit
+2025-09-27 13:42:04.347 ACST [95728] LOG:  could not bind IPv6 address "::1": Address already in use
+2025-09-27 13:42:04.347 ACST [95728] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2025-09-27 13:42:04.347 ACST [95728] LOG:  could not bind IPv4 address "127.0.0.1": Address already in use
+2025-09-27 13:42:04.347 ACST [95728] HINT:  Is another postmaster already running on port 5432? If not, wait a few seconds and retry.
+2025-09-27 13:42:04.347 ACST [95728] WARNING:  could not create listen socket for "localhost"
+2025-09-27 13:42:04.347 ACST [95728] FATAL:  could not create any TCP/IP sockets
+2025-09-27 13:42:04.347 ACST [95728] LOG:  database system is shut down
+2025-09-27 13:44:36.378 ACST [97169] LOG:  starting PostgreSQL 14.19 (Homebrew) on aarch64-apple-darwin22.6.0, compiled by Apple clang version 15.0.0 (clang-1500.1.0.2.5), 64-bit
+2025-09-27 13:44:36.379 ACST [97169] LOG:  listening on IPv6 address "::1", port 5432
+2025-09-27 13:44:36.379 ACST [97169] LOG:  listening on IPv4 address "127.0.0.1", port 5432
+2025-09-27 13:44:36.380 ACST [97169] LOG:  listening on Unix socket "/tmp/.s.PGSQL.5432"
+2025-09-27 13:44:36.384 ACST [97170] LOG:  database system was shut down at 2025-09-27 13:37:07 ACST
+2025-09-27 13:44:36.387 ACST [97169] LOG:  database system is ready to accept connections
+2025-09-27 13:44:50.653 ACST [97248] FATAL:  role "didou" does not exist
+2025-09-27 13:46:02.089 ACST [97319] ERROR:  syntax error at or near "CREATE" at character 35
+2025-09-27 13:46:02.089 ACST [97319] STATEMENT:  CREATE DATABASE didou OWNER didou
+	CREATE DATABASE didou OWNER didou;
+2025-09-27 13:58:24.709 ACST [97681] ERROR:  insert or update on table "trip_availability" violates foreign key constraint "trip_availability_trip_id_fkey"
+2025-09-27 13:58:24.709 ACST [97681] DETAIL:  Key (trip_id)=(12) is not present in table "trips".
+2025-09-27 13:58:24.709 ACST [97681] STATEMENT:  INSERT INTO trip_availability (trip_id, user_id, avail_start, avail_end)
+	       VALUES ($1,$2,$3,$4)
+	       ON CONFLICT (trip_id, user_id)
+	       DO UPDATE SET avail_start = EXCLUDED.avail_start,
+	                     avail_end   = EXCLUDED.avail_end
+2025-09-27 13:58:27.806 ACST [97685] ERROR:  insert or update on table "trip_availability" violates foreign key constraint "trip_availability_trip_id_fkey"
+2025-09-27 13:58:27.806 ACST [97685] DETAIL:  Key (trip_id)=(12) is not present in table "trips".
+2025-09-27 13:58:27.806 ACST [97685] STATEMENT:  INSERT INTO trip_availability (trip_id, user_id, avail_start, avail_end)
+	       VALUES ($1,$2,$3,$4)
+	       ON CONFLICT (trip_id, user_id)
+	       DO UPDATE SET avail_start = EXCLUDED.avail_start,
+	                     avail_end   = EXCLUDED.avail_end
+2025-09-27 13:58:30.746 ACST [97688] ERROR:  insert or update on table "trip_availability" violates foreign key constraint "trip_availability_trip_id_fkey"
+2025-09-27 13:58:30.746 ACST [97688] DETAIL:  Key (trip_id)=(12) is not present in table "trips".
+2025-09-27 13:58:30.746 ACST [97688] STATEMENT:  INSERT INTO trip_availability (trip_id, user_id, avail_start, avail_end)
+	       VALUES ($1,$2,$3,$4)
+	       ON CONFLICT (trip_id, user_id)
+	       DO UPDATE SET avail_start = EXCLUDED.avail_start,
+	                     avail_end   = EXCLUDED.avail_end
+2025-09-27 13:58:34.913 ACST [97689] ERROR:  insert or update on table "trip_availability" violates foreign key constraint "trip_availability_trip_id_fkey"
+2025-09-27 13:58:34.913 ACST [97689] DETAIL:  Key (trip_id)=(12) is not present in table "trips".
+2025-09-27 13:58:34.913 ACST [97689] STATEMENT:  INSERT INTO trip_availability (trip_id, user_id, avail_start, avail_end)
+	       VALUES ($1,$2,$3,$4)
+	       ON CONFLICT (trip_id, user_id)
+	       DO UPDATE SET avail_start = EXCLUDED.avail_start,
+	                     avail_end   = EXCLUDED.avail_end
+2025-09-27 14:11:08.167 ACST [98220] ERROR:  null value in column "destination" of relation "trips" violates not-null constraint
+2025-09-27 14:11:08.167 ACST [98220] DETAIL:  Failing row contains (NNRFK3MG, Demo Trip, null, null, 2025-09-27, 2025-09-30, null, 0, 2025-09-27 14:11:08.153787+09:30, null).
+2025-09-27 14:11:08.167 ACST [98220] STATEMENT:  INSERT INTO trips (id, name, start_date, end_date)
+	VALUES (gen_trip_id(), 'Demo Trip', CURRENT_DATE, CURRENT_DATE + INTERVAL '3 days')
+	RETURNING id;
+2025-09-27 14:11:08.170 ACST [98220] ERROR:  null value in column "password_salt" of relation "users" violates not-null constraint
+2025-09-27 14:11:08.170 ACST [98220] DETAIL:  Failing row contains (2, Test User, test user, test@example.com, x, null, null, 2025-09-27 14:11:08.170181+09:30).
+2025-09-27 14:11:08.170 ACST [98220] STATEMENT:  INSERT INTO users (name, email, password_hash) VALUES ('Test User','test@example.com','x') RETURNING id;
+2025-09-27 14:11:08.173 ACST [98220] ERROR:  insert or update on table "trip_members" violates foreign key constraint "trip_members_trip_id_fkey"
+2025-09-27 14:11:08.173 ACST [98220] DETAIL:  Key (trip_id)=(<TRIP_ID>) is not present in table "trips".
+2025-09-27 14:11:08.173 ACST [98220] STATEMENT:  INSERT INTO trip_members (trip_id, user_id, role)
+	VALUES ('<TRIP_ID>', 4, 'member')
+	ON CONFLICT DO NOTHING;

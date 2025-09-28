@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DiDou — Wishlist</title>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .wrap{max-width:760px;margin:24px auto;padding:0 16px;}
+    .header{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:10px;}
+    .pill{display:inline-block;background:#3439a1;color:#fff;border-radius:999px;padding:6px 10px;font-weight:700;}
+    .grid{display:grid;grid-template-columns:1fr;gap:12px}
+    .group{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);}
+    .group h3{margin:12px 12px 0;color:#3439a1}
+    ul{list-style:none;margin:8px 0 0;padding:0 12px 12px}
+    li{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border)}
+    li:last-child{border-bottom:0}
+    .item-name{font-weight:600}
+    .muted{color:#667085}
+    .actions{display:flex;gap:8px;align-items:center}
+    .danger{background:#fee2e2;color:#7f1d1d;border:1px solid #fecaca}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:560px){.field-row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <img src="logo.JPG" class="logo" alt="DiDou"/>
+      <h1 style="margin:0;">Wishlist</h1>
+    </div>
+    <p class="center" id="tripLine" style="margin-top:-6px;"></p>
+
+    <div class="card">
+      <h2 class="center" style="margin-top:0">Add an activity</h2>
+      <form id="form" class="field-row">
+        <div>
+          <label for="name">Activity</label>
+          <input id="name" type="text" placeholder="e.g., Sushi at Ichiban" required/>
+        </div>
+        <div>
+          <label for="period">Time period</label>
+          <select id="period" required>
+            <option value="" disabled selected hidden>Select period…</option>
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Evening">Evening</option>
+          </select>
+        </div>
+        <div>
+          <label for="category">Category</label>
+          <select id="category" required>
+            <option value="" disabled selected hidden>Select category…</option>
+            <option value="Food & Drink">Food & Drink</option>
+            <option value="Transport">Transport</option>
+            <option value="Sightseeing">Sightseeing</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Nightlife">Nightlife</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label for="address">Address (optional)</label>
+          <input id="address" type="text" placeholder="123 Main St"/>
+        </div>
+        <div class="toolbar" style="grid-column:1/-1">
+          <button class="primary" type="submit">Add to wishlist</button>
+          <button class="secondary" type="button" id="refresh">Refresh</button>
+          <button class="secondary" type="button" id="backAvailability">Back to Availability</button>
+          <div id="msg" class="msg"></div>
+        </div>
+      </form>
+    </div>
+
+    <div class="grid" id="listGrid" style="margin-top:12px">
+      <!-- Lists per period injected here -->
+    </div>
+  </div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const tripId = params.get('tripId');
+  const user = JSON.parse(localStorage.getItem('didou_user')||'null');
+  if (!tripId) {
+    document.body.innerHTML = '<div class="wrap"><div class="card center"><h2>No trip selected</h2><p>Open this page with ?tripId=XXXX</p></div></div>';
+    throw new Error('no trip id');
+  }
+  if (!user) {
+    alert('Please sign in first');
+    location.href = '/index.html';
+  }
+
+  const $ = s => document.querySelector(s);
+  const form = $('#form');
+  const msg = $('#msg');
+  const grid = $('#listGrid');
+  const tripLine = $('#tripLine');
+  const backAvailabilityBtn = $('#backAvailability');
+  let leaderId = null;
+
+  function setMsg(text, type='') {
+    msg.textContent = text || '';
+    msg.className = 'msg' + (type ? ' ' + type : '');
+  }
+
+  async function fetchTrip(){
+    const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}`);
+    if (!r.ok) throw new Error('Trip not found');
+    return await r.json();
+  }
+
+  async function fetchActivities(){
+    const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}/activities`);
+    if (!r.ok) throw new Error('Failed to load activities');
+    const data = await r.json();
+    return data.list || [];
+  }
+
+  function groupByPeriod(list){
+    const map = { Morning: [], Afternoon: [], Evening: [], Other: [] };
+    list.forEach(a=>{
+      const p = a.time_period || 'Other';
+      (map[p] || map.Other).push(a);
+    });
+    return map;
+  }
+
+  function render(list){
+    grid.innerHTML = '';
+    const groups = groupByPeriod(list);
+    ['Morning','Afternoon','Evening','Other'].forEach(period=>{
+      const items = groups[period];
+      if (!items || !items.length) return;
+      const box = document.createElement('div');
+      box.className = 'group';
+      box.innerHTML = `
+        <h3>${period}</h3>
+        <ul>
+          ${items.map(it => `
+            <li>
+              <div>
+                <div class="item-name">${escapeHtml(it.name)}</div>
+                <div class="muted">${[it.category,it.address].filter(Boolean).map(escapeHtml).join(' · ') || '&nbsp;'}</div>
+              </div>
+              <div class="actions">
+                ${user.id === leaderId ? `<button class="danger" data-del="${it.id}">Delete</button>` : ''}
+              </div>
+            </li>
+          `).join('')}
+        </ul>
+      `;
+      grid.appendChild(box);
+    });
+
+    // wire deletes (only if leader)
+    if(user.id === leaderId){
+      grid.querySelectorAll('[data-del]').forEach(btn=>{
+        btn.addEventListener('click', async ()=>{
+          try{
+            btn.disabled = true;
+            const id = btn.getAttribute('data-del');
+            const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}/activities/${id}`, { method:'DELETE' });
+            const d = await r.json();
+            if (!d.ok) throw new Error(d.error || 'Delete failed');
+            load();
+          }catch(e){
+            setMsg(e.message || 'Delete failed','err');
+          }finally{
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+  }
+
+  function escapeHtml(s){
+    return String(s || '').replace(/[&<>"']/g, m => (
+      { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;' }[m]
+    ));
+  }
+
+  async function load(){
+    try{
+      setMsg('');
+      const [trip, acts] = await Promise.all([fetchTrip(), fetchActivities()]);
+      leaderId = trip.leader_id;
+      tripLine.innerHTML = `<span class="pill">${trip.name || trip.id}</span> &nbsp; <span class="muted">(${trip.destination || 'Destination TBA'})</span>`;
+      render(acts);
+    }catch(e){
+      setMsg(e.message || 'Load failed','err');
+    }
+  }
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    setMsg('');
+    const name = document.getElementById('name').value.trim();
+    const period = document.getElementById('period').value;
+    const category = document.getElementById('category').value;
+    const address = document.getElementById('address').value.trim();
+    if (!name || !period || !category) { setMsg('All fields required except address.','err'); return; }
+    try{
+      const r = await fetch(`/api/trips/${encodeURIComponent(tripId)}/activities`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, time_period: period, category, address })
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || 'Save failed');
+      form.reset();
+      setMsg('Added!','ok');
+      load();
+    }catch(e){
+      setMsg(e.message || 'Save failed','err');
+    }
+  });
+
+  // refresh + back to availability
+  document.getElementById('refresh').addEventListener('click', load);
+  backAvailabilityBtn.addEventListener('click', ()=>{
+    const uid = user?.id ? `&userId=${encodeURIComponent(user.id)}` : '';
+    location.href = `/MemberAvailability.html?tripId=${encodeURIComponent(tripId)}${uid}`;
+  });
+
+  load();
+</script>
+</body>
+</html>

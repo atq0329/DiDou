@@ -1,115 +1,187 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Create Trip</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DiDou - Create Trip</title>
   <style>
-    body{background:#648de5;margin:0;font-family:system-ui,Arial,sans-serif;}
-    .wrap{max-width:900px;margin:22px auto;padding:0 16px}
-    .logo{display:block;margin:0 auto 10px; width:141px; height:auto}
-    .box{background:#3439a1;color:#fff;border-radius:14px;padding:18px 18px 22px}
-    h2{margin:6px 0 16px;text-align:center;color:#efc738;font-weight:800}
-    label{display:block;margin:10px 0 6px;font-weight:700}
-    input,select{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #222;font-size:16px}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .err{display:none;color:#ffdada;background:#7c0000;border-radius:8px;padding:8px 10px;margin-top:10px}
-    .err.show{display:block}
-    .primary{width:100%;margin-top:14px;padding:14px;border:0;border-radius:12px;background:#efc738;font-weight:800;cursor:pointer}
+    body{ background:#648de5; margin:0; font-family:system-ui,Arial,sans-serif;}
+    .bigBox{ width:760px; max-width:95vw; background:#3439a1; border-radius:12px; padding:28px; margin:32px auto; color:#fff; }
+    .bigBox h2{ color:#efc738; text-align:center; margin:0 0 18px; }
+    .form{ display:flex; flex-direction:column; gap:16px; }
+    .row{ display:grid; grid-template-columns:210px 1fr; gap:16px; align-items:center; }
+    .row>label{ font-weight:bold; }
+    input[type="text"], input[type="date"], select{
+      padding:8px 10px; border:1px solid #111; border-radius:6px; background:#fff; color:#111; font-size:14px;
+    }
+    .select{ appearance:none; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat:no-repeat; background-position:right 12px center; background-size:16px; }
+    .controls-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:center; }
+    .inline{ display:grid; grid-template-columns:120px 230px; gap:10px; align-items:center; }
+    #tripName,#dest{ width:380px; max-width:100%; }
+    #drpStart,#drpEnd,#duration,#deadline{ width:200px; max-width:100%; }
+    .drp-error{ color:#ffdddd; background:#7c0000; padding:6px 8px; border-radius:6px; display:none; grid-column:2/3; }
+    .drp-error.show{ display:block; }
+    .btn{ padding:10px 14px; border-radius:10px; border:0; background:#efc738; color:#111; font-weight:800; cursor:pointer; }
+    .center{ text-align:center; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <img src="logo.JPG" class="logo" alt="logo">
-    <div class="box">
-      <h2>(Trip Leader)</h2>
+  <div style="text-align:center;"><img src="logo.JPG" alt="Logo" width="141" height="200"></div>
 
-      <label>Trip Name</label>
-      <input id="tripName" placeholder="Enter your trip name" required>
-
-      <label>Destination City</label>
-      <input id="dest" placeholder="Enter your destination city" required>
-
+  <div class="bigBox">
+    <h2><span id="leaderName"></span> (Trip Leader)</h2>
+    <div class="form">
       <div class="row">
+        <label for="tripName">Trip Name</label>
         <div>
-          <label>Start date</label>
-          <input type="date" id="drpStart" required>
-        </div>
-        <div>
-          <label>End date</label>
-          <input type="date" id="drpEnd" required>
+          <input id="tripName" type="text" placeholder="Enter your trip name" required>
+          <div class="error-msg" style="display:none;">Please enter a trip name.</div>
         </div>
       </div>
 
-      <div id="err" class="err"></div>
+      <div class="row">
+        <label for="dest">Destination</label>
+        <input id="dest" type="text" placeholder="Enter destination city" required>
+      </div>
 
-      <label>Duration (days)</label>
-      <select id="duration" required>
-        <option value="" disabled selected hidden>Select duration…</option>
-      </select>
+      <div class="row">
+        <label>Trip Dates</label>
+        <div class="controls-2">
+          <div class="inline">
+            <span class="sublabel">Start date:</span>
+            <input id="drpStart" type="date" required>
+          </div>
+          <div class="inline">
+            <span class="sublabel">End date:</span>
+            <input id="drpEnd" type="date" required>
+          </div>
+        </div>
+      </div>
+      <div id="drpErr" class="drp-error"></div>
 
-      <button id="createBtn" class="primary">Create Trip</button>
+      <div class="row">
+        <label>Planning</label>
+        <div class="controls-2">
+          <div class="inline">
+            <span class="sublabel">Min Days</span>
+            <select id="duration" class="select" required>
+              <option value="" disabled selected>Select duration…</option>
+              <!-- Will be rebuilt to 1..(days range) once dates picked -->
+            </select>
+          </div>
+          <div class="inline">
+            <span class="sublabel">Deadline</span>
+            <input id="deadline" type="date">
+          </div>
+        </div>
+      </div>
+
+      <div class="center" style="margin-top:8px;">
+        <button id="createTrip" type="button" class="btn">Create Trip</button>
+      </div>
     </div>
   </div>
 
-<script>
-(function(){
-  const $ = s=>document.querySelector(s);
-  const tripName=$('#tripName'), dest=$('#dest'),
-        start=$('#drpStart'), end=$('#drpEnd'),
-        duration=$('#duration'), createBtn=$('#createBtn'), err=$('#err');
+  <script>
+    // auth check
+    const user = JSON.parse(localStorage.getItem('didou_user') || 'null');
+    if (!user) { location.href = '/'; }
+    document.getElementById('leaderName').textContent = user?.name || '';
 
-  const today = new Date(); today.setHours(0,0,0,0);
-  const iso = d => d.toISOString().slice(0,10);
+    const tripName = document.getElementById('tripName');
+    const dest = document.getElementById('dest');
+    const start = document.getElementById('drpStart');
+    const end = document.getElementById('drpEnd');
+    const duration = document.getElementById('duration');
+    const deadline = document.getElementById('deadline');
+    const createBtn = document.getElementById('createTrip');
+    const errBox = document.getElementById('drpErr');
 
-  start.value = iso(today);
-  end.value   = iso(today);
+    const todayISO = () => {
+      const d = new Date();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${d.getFullYear()}-${m}-${day}`;
+    };
+    const showErr = (m)=>{ errBox.textContent = m; errBox.classList.add('show'); };
+    const clearErr = ()=>{ errBox.textContent = ''; errBox.classList.remove('show'); };
 
-  function days(a,b){ const A=new Date(a), B=new Date(b); A.setHours(0,0,0,0); B.setHours(0,0,0,0); return Math.floor((B-A)/86400000)+1; }
-  function rebuild(){
-    err.textContent=''; err.classList.remove('show');
-    if(!start.value || !end.value) return;
-    if(end.value < start.value){ err.textContent='End date must be after start date.'; err.classList.add('show'); return; }
-    const d = days(start.value, end.value);
-    duration.innerHTML = '<option value="" disabled selected hidden>Select duration…</option>';
-    const max = Math.min(d, 60);
-    for (let i=1;i<=max;i++){
-      const opt=document.createElement('option');
-      opt.value=String(i); opt.textContent = i===1?'1 day':`${i} days`;
-      duration.appendChild(opt);
+    // set min dates
+    const today = todayISO();
+    start.min = today; end.min = today; deadline.min = today;
+
+    function enforceDeadlineBounds(){
+      deadline.min = today;
+      if (end.value) deadline.max = end.value; else deadline.removeAttribute('max');
+      if (deadline.value && deadline.value < deadline.min) deadline.value = deadline.min;
+      if (deadline.value && deadline.max && deadline.value > deadline.max) deadline.value = deadline.max;
     }
-    duration.value = String(Math.min(d, max));
-  }
-  start.addEventListener('change', ()=>{ end.min = start.value; rebuild(); });
-  end  .addEventListener('change', ()=>{ start.max = end.value; rebuild(); });
-  rebuild();
 
-  createBtn.addEventListener('click', async ()=>{
-    err.textContent=''; err.classList.remove('show');
-    if(!tripName.value.trim() || !dest.value.trim() || !start.value || !end.value || !duration.value){
-      err.textContent='Please complete all fields.'; err.classList.add('show'); return;
+    function daysBetweenInclusive(a,b){
+      const s = new Date(a), e = new Date(b);
+      if (isNaN(s)||isNaN(e)) return null;
+      s.setHours(0,0,0,0); e.setHours(0,0,0,0);
+      return Math.floor((e-s)/86400000)+1;
     }
-    try{
-      createBtn.disabled=true;
-      const r = await fetch('/api/trips',{
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          name: tripName.value.trim(),
-          destination: dest.value.trim(),
-          duration: duration.value,
-          start_date: start.value,
-          end_date: end.value
-        })
-      });
-      if(!r.ok){ const j = await r.json().catch(()=>({error:r.statusText})); throw new Error(j.error); }
-      const row = await r.json();
-      location.href = `/MemberAvailability.html?tripId=${encodeURIComponent(row.id)}`;
-    }catch(e){
-      err.textContent = e.message || 'Failed to create trip.';
-      err.classList.add('show');
-    }finally{ createBtn.disabled=false; }
-  });
-})();
-</script>
+    function rebuildDurationOptions(totalDays){
+      duration.innerHTML = '';
+      const ph = document.createElement('option');
+      ph.value=''; ph.textContent='Select duration…'; ph.disabled=true; ph.hidden=true; ph.selected=true;
+      duration.appendChild(ph);
+      const max = Math.min(totalDays, 60);
+      for(let i=1;i<=max;i++){
+        const opt = document.createElement('option');
+        opt.value=String(i); opt.textContent = i===1 ? '1 day' : `${i} days`;
+        duration.appendChild(opt);
+      }
+    }
+    function syncDuration(){
+      clearErr();
+      if (!start.value || !end.value) return;
+      if (end.value < start.value){ showErr('End date must be after start date.'); return; }
+      const d = daysBetweenInclusive(start.value, end.value);
+      if (d && d>0) { rebuildDurationOptions(d); duration.value = String(Math.min(d, 7)); }
+      enforceDeadlineBounds();
+    }
+    start.addEventListener('change', ()=>{ end.min = start.value || today; if (end.value && end.value < end.min) end.value = end.min; syncDuration(); });
+    end  .addEventListener('change', ()=>{ start.max = end.value || ''; if (start.value && start.value > start.max) start.value = start.max; syncDuration(); });
+
+    createBtn.addEventListener('click', async ()=>{
+      clearErr();
+      if (!tripName.value.trim() || !dest.value.trim()) { showErr('Please enter trip name and destination.'); return; }
+      if (!start.value || !end.value) { showErr('Please choose both start and end dates.'); return; }
+      if (end.value < start.value) { showErr('End date must be after start date.'); return; }
+      if (!duration.value) { showErr('Please choose minimum duration.'); return; }
+      enforceDeadlineBounds();
+
+      const payload = {
+        name: tripName.value.trim(),
+        destination: dest.value.trim(),
+        duration: duration.value,
+        start_date: start.value,
+        end_date: end.value,
+        deadline: deadline.value || null,
+        leader_id: user.id
+      };
+
+      try{
+        createBtn.disabled = true; createBtn.textContent = 'Creating…';
+        const r = await fetch('/api/trips', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const q = await r.json();
+        if (!r.ok) throw new Error(q?.error || 'Create failed');
+        // To leader dashboard
+        const tripId = q.id || q.trip_id || '';
+        const params = new URLSearchParams({ tripId });
+        location.href = `/LeaderView.html?${params.toString()}`;
+      }catch(e){
+        showErr(e.message || 'Network error.');
+      }finally{
+        createBtn.disabled = false; createBtn.textContent = 'Create Trip';
+      }
+    });
+  </script>
 </body>
 </html>
